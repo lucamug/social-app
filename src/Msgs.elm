@@ -6,10 +6,13 @@ import Window
 
 type Msg
     = NoOp
-    | UsernameAdded String
+    | EmailEdited String
+    | PasswordEdited String
     | Resize Window.Size
-    | LogInRequested
+    | LoginRequested
+    | LogInSuccess String
+    | LogOutSuccess String
+    | UserId String
     | LogOutRequested
     | LocationChanged Location
     | ToRoute Route
-    | FinishedAuth (Result String ())

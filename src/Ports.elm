@@ -1,5 +1,12 @@
 port module Ports exposing (..)
 
-port login : String -> String -> Cmd msg
+-- To Javascript
+port newUser : {email: String, password: String} -> Cmd msg
+port login   : {email: String, password: String} -> Cmd msg
+port logout   : String -> Cmd msg
 
-port returnUser : ()
+
+-- To Elm
+port loggedIn : (String -> msg) -> Sub msg
+
+port loggedOut : (String -> msg) -> Sub msg

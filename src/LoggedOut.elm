@@ -1,40 +1,69 @@
 module LoggedOut exposing (..)
 
-import Element exposing (button, column, el, row, text, empty, table, html)
+import Element exposing (button, column, el, empty, html, row, table, text)
 import Element.Attributes exposing (..)
 import Element.Input as Input
-import Misc exposing (onClickPreventDefault)
-import Msgs exposing (Msg(LogInRequested, NoOp, UsernameAdded))
-import Styles exposing (MyStyles(..))
 import Html
 import Html.Attributes as Attr
+import Misc exposing (materialIcon, onClickPreventDefault)
+import Msgs exposing (Msg(LoginRequested, NoOp, EmailEdited, PasswordEdited))
+import Styles exposing (MyStyles(..))
 
 
 type alias Model =
     {}
 
-viewTextInput (changeMsg, label) = 
+
+viewTextInput ( changeMsg, label ) =
     Input.text NoStyle
-        [height (px 30)]
+        [ height (px 30) ]
         { onChange = changeMsg
         , value = ""
-        , label = Input.labelLeft empty 
+        , label = Input.labelLeft empty
         , options = []
         }
-    
+
 
 viewLoggedOut =
-    let
-        textInputs = [(UsernameAdded, "Email: "), (UsernameAdded, "Password: ")]
-    in
-        
     column NoStyle
-        [ height fill, width fill, verticalCenter, spacing 10]
-        [ row NoStyle
-            [padding 20, center]
-            [html (Html.div [Attr.class "input-field"][Html.input [Attr.placeholder "Email"][]
-                , Html.label [][]])]
+        [ height fill, width fill, verticalCenter, spacing 10 ]
+        [ el NoStyle [center] (html (Html.h1 [] [Html.text "4OfUs"]))
+        , row NoStyle
+            [ center, verticalCenter, paddingXY 50 10, spacing 20 ]
+            [ materialIcon "mail" "grey"
+            , Input.email NoStyle
+                []
+                (Input.Text EmailEdited
+                    ""
+                    (Input.placeholder
+                        { text = "Email"
+                        , label = Input.hiddenLabel ""
+                        }
+                    )
+                    []
+                )
+            ]
+        , row NoStyle
+            [ center, verticalCenter, paddingXY 50 10, spacing 20 ]
+            [ materialIcon "lock" "grey"
+            , Input.currentPassword NoStyle
+                []
+                (Input.Text PasswordEdited
+                    ""
+                    (Input.placeholder
+                        { text = "Password"
+                        , label = Input.hiddenLabel ""
+                        }
+                    )
+                    []
+                )
+            ]
         , row NoStyle
             [ center, spacing 10 ]
-            [ html (Html.button [onClickPreventDefault LogInRequested, Attr.classList [("waves-effect", True), ("waves-light", True), ("btn", True)]][Html.text "Button Dog"])]
+            [ button NoStyle
+                [ paddingXY 40 10, onClickPreventDefault LoginRequested
+                , class "waves-effect waves-light btn"
+                ]
+                (el NoStyle [] (text "Log In"))
+            ]
         ]

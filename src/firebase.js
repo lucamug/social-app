@@ -1,17 +1,16 @@
-import * as firebase from 'firebase'
-import 'firebase/firestore'
-
+// import * as firebase from 'firebase'
+// import 'firebase/firestore'
 
 // initialize firebase
 firebase.initializeApp(
-  {
-    apiKey: "AIzaSyAg5qG6IY9-1mlWqy-UG9ZntRhk9VCOB_0",
-    authDomain: "whisber-547f1.firebaseapp.com",
-    databaseURL: "https://whisber-547f1.firebaseio.com",
-    projectId: "whisber-547f1",
-    storageBucket: "whisber-547f1.appspot.com",
-    messagingSenderId: "627883058975"
-  })
+  { apiKey: "AIzaSyDsVG_kHJs_5xUr4oByMftZdnyUZsWPYZw"
+  , authDomain: "wysber-9cc6a.firebaseapp.com"
+  , databaseURL: "https://wysber-9cc6a.firebaseio.com"
+  , projectId: "wysber-9cc6a"
+  , storageBucket: "wysber-9cc6a.appspot.com"
+  , messagingSenderId: "422220864628"
+  }
+)
 
   firebase.firestore().enablePersistence()
   .then(() => {
@@ -29,6 +28,7 @@ firebase.initializeApp(
           // ...
       }
   });
+
 
 export const db = firebase.firestore()
 export const auth = firebase.auth()
