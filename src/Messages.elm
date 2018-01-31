@@ -1,8 +1,7 @@
-module Msgs exposing (..)
-
-import Navigation exposing (Location)
-import Route exposing (Route)
+module Messages exposing(..)
 import Window
+import Navigation exposing(Location)
+import Route exposing(Route)
 
 type Msg
     = NoOp
@@ -11,8 +10,9 @@ type Msg
     | Resize Window.Size
     | LoginRequested
     | LogInSuccess String
+    | CancelInput
     | LogOutSuccess String
-    | UserId String
     | LogOutRequested
+    | CreateProfileRequested
     | LocationChanged Location
     | ToRoute Route

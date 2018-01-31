@@ -15,6 +15,7 @@ type MyStyles
     | Avatar
     | YellowBar
     | Header
+    | Modal
     | Button
     | Sidebar
     | Main
@@ -36,6 +37,7 @@ stylesheet =
             , Border.rounded 8
             ]
         , style Pusher [ transitions [ Transition 0 130 "ease-in" [ "width" ] ] ]
+        , style Modal [ transitions [ Transition 0 230 "ease-in" [ "left" ] ] ]
         , style Main [ Color.background darkGrey ]
         , style Underline []
         , style NoStyle []
