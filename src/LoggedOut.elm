@@ -4,18 +4,22 @@ import Data exposing (LoggedOutStatus(..))
 import Element exposing (button, column, el, empty, html, modal, row, screen, text)
 import Element.Attributes exposing (..)
 import Element.Input exposing (Text, currentPassword, email, hiddenLabel, placeholder)
+import CreateProfile exposing(viewCreateProfile)
 import Html
 import Html.Attributes as Attr
 import Misc exposing (materialIcon, onClickPreventDefault)
-import Messages exposing (Msg(CancelInput, CreateProfileRequested, EmailEdited, LoginRequested, PasswordEdited))
+import Msgs exposing (Msg(ProfileCreationCanceled, CreateProfileRequested, EmailEdited, LoginRequested, PasswordEdited))
 import Styles exposing (MyStyles(..))
+
+type alias Model =
+    { usernameEntry: String
+    , emailEntry: String
+    , passwordEntry: String
+    }
+
 
 
 viewLoggedOut loginStatus =
-    let
-        _ = Debug.log "stat" loginStatus
-    in
-        
     column NoStyle
         [ class "green lighten-2", height fill, width fill, verticalCenter, paddingXY 50 10 ]
         -- Title
@@ -66,33 +70,5 @@ viewLoggedOut loginStatus =
                 ]
                 (text "Create free profile")
             ]
-        , screen
-            (row Modal
-                [ inlineStyle
-                    [ ( "background-color", "white" )
-                    , ( "left"
-                      , if loginStatus == LoggingIn then
-                            "-100%"
-                        else
-                            "0"
-                      )
-                    ]
-                , width fill
-                , height fill
-                ]
-                [ row YellowBar
-                    [ width fill
-                    , height (px 60)
-                    , padding 10
-                    , alignLeft
-                    ]
-                    [ el NoStyle
-                        [ verticalCenter
-                        , class "btn-floating waves-effect btn-flat red"
-                        , onClickPreventDefault CancelInput
-                        ]
-                        (materialIcon "chevron_left" "white")
-                    ]
-                ]
-            )
+        , viewCreateProfile loginStatus
         ]

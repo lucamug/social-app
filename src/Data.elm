@@ -2,27 +2,37 @@ module Data exposing (..)
 
 import Route exposing (Route)
 import Navigation exposing(Location)
-import Messages exposing(..)
-
+import Msgs exposing(..)
 
 type alias Model =
     { viewportDims : { height : Int, width : Int }
     , auth : Auth
     , route : Route
-    , email : String
-    , password : String
+    , usernameEntry: String
+    , emailEntry: String
+    , passwordEntry : String
     }
 
 init : { width : Int, height : Int } -> Location -> ( Model, Cmd Msg )
 init flags location =
     ( { viewportDims = flags
       , auth = LoggedOut LoggingIn
-      , email = ""
-      , password = ""
       , route = Route.getRoute location
+      , usernameEntry = ""
+      , emailEntry = ""
+      , passwordEntry = ""
       }
     , Cmd.none
     )
+
+
+
+type RouteData
+    = LoggedOutData
+
+
+type ViewData
+    = LogInData
 
 
 type Auth
@@ -30,7 +40,7 @@ type Auth
     | LoggedOut LoggedOutStatus
     | AwaitingAuth
 
---  ❤😍🐱‍👓
+
 type LoggedOutStatus
     = LoggingIn 
     | CreatingAccount

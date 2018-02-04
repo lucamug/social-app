@@ -6,7 +6,6 @@ import Html
 import Html.Attributes as Attr
 import Json.Decode
 
-
 onClickPreventDefault msg =
     onWithOptions "click"
         { preventDefault = True, stopPropagation = True }

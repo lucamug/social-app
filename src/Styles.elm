@@ -15,6 +15,7 @@ type MyStyles
     | Avatar
     | YellowBar
     | Header
+    | WhiteBg
     | Modal
     | Button
     | Sidebar
@@ -29,6 +30,7 @@ stylesheet =
             [ Color.background lightBlue
             ]
         , style YellowBar [ Color.background yellow ]
+        , style WhiteBg [ Color.background white ]
         , style Header [ Color.background blue ]
         , style Button
             [ Color.text (Color.rgb 256 256 256)

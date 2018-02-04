@@ -1,7 +1,7 @@
 port module Ports exposing (..)
 
 -- To Javascript
-port newUser : {email: String, password: String} -> Cmd msg
+port newUser : {username: String, email: String, password: String} -> Cmd msg
 port login   : {email: String, password: String} -> Cmd msg
 port logout   : String -> Cmd msg
 

@@ -8,11 +8,26 @@ var app = Main.fullscreen({ width: window.innerWidth, height: window.innerHeight
 
 registerServiceWorker();
 
-app.ports.newUser.subscribe(({email, password}) => {
+app.ports.newUser.subscribe(({username, email, password}) => {
   auth.createUserAndRetrieveDataWithEmailAndPassword(email, password)
     .then(user =>{
       console.log(user)
-      // app.ports.userRetrieved.send()
+      const uid = user.user.uid
+      const newUser = {username,
+        defaultPhotoUrls:{couple: null,
+                          his: null,
+                          hers: null}}
+
+      db.doc(`users/${uid}`).set(newUser)
+      db.doc(`users/${uid}/profile/settings`).set({})
+      db.doc(`users/${uid}/profile/base0`).set({})
+      db.doc(`users/${uid}/profile/base1`).set({})
+      db.doc(`users/${uid}/profile/base2`).set({})
+      db.doc(`users/${uid}/profile/base3`).set({})
+      db.doc(`users/${uid}/profile/base4`).set({})
+      db.doc(`userNotifications/${uid}`).set({})
+
+      app.ports.loggedIn.send(uid)
     })
     .catch(error =>{
       // TODO: Send back error to elm

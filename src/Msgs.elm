@@ -1,4 +1,4 @@
-module Messages exposing(..)
+module Msgs exposing(..)
 import Window
 import Navigation exposing(Location)
 import Route exposing(Route)
@@ -7,12 +7,14 @@ type Msg
     = NoOp
     | EmailEdited String
     | PasswordEdited String
-    | Resize Window.Size
+    | UsernameEdited String
+    | WindowResized Window.Size
     | LoginRequested
-    | LogInSuccess String
-    | CancelInput
-    | LogOutSuccess String
+    | LoginSucceeded String
+    | ProfileCreationCanceled
+    | LogOutSucceeded String
     | LogOutRequested
     | CreateProfileRequested
+    | SubmitProfileRequested
     | LocationChanged Location
-    | ToRoute Route
+    | RouteChangeRequested Route

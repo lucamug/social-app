@@ -5,7 +5,7 @@ import Element exposing (Element, button, column, el, empty, html, row, screen, 
 import Element.Attributes exposing (..)
 import List.Extra exposing (elemIndex)
 import Misc exposing (materialIcon, onClickPreventDefault)
-import Messages exposing (..)
+import Msgs exposing (..)
 import Update exposing(update)
 import Route exposing (Route(..))
 import Styles exposing (MyStyles(..), stylesheet)
@@ -64,7 +64,7 @@ viewTab selectedRoute =
             List.map Tuple.second listTabs
                 |> elemIndex selectedRoute
     in
-    Element.map ToRoute
+    Element.map RouteChangeRequested
         (column NoStyle
             [ width (fillPortion 4) ]
             [ row NoStyle

@@ -2,8 +2,8 @@ module Update exposing (..)
 
 import Data exposing (..)
 import Navigation exposing (Location, modifyUrl)
-import Ports exposing (login, logout)
-import Messages exposing(..)
+import Ports exposing (login, logout, newUser)
+import Msgs exposing(..)
 import Route exposing (Route, getRoute)
 import Window
 
@@ -13,38 +13,44 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        CancelInput ->
+        ProfileCreationCanceled ->
             ( { model | auth = LoggedOut LoggingIn }, Cmd.none )
 
         EmailEdited email ->
-            ( { model | email = email }, Cmd.none )
+            ( { model | emailEntry = email }, Cmd.none )
 
         PasswordEdited password ->
-            ( { model | password = password }, Cmd.none )
+            ( { model | passwordEntry = password }, Cmd.none )
+
+        UsernameEdited username ->
+            ( { model | usernameEntry = username }, Cmd.none )
 
         LogOutRequested ->
             ( model, logout "" )
 
-        LogOutSuccess val ->
+        LogOutSucceeded val ->
             ( { model | auth = LoggedOut LoggingIn }, Cmd.none )
 
         CreateProfileRequested ->
             ( { model | auth = LoggedOut CreatingAccount }, Cmd.none )
 
-        LogInSuccess uid ->
+        SubmitProfileRequested ->
+            ( model, newUser { username = model.usernameEntry, email = model.emailEntry, password = model.passwordEntry } ) 
+ 
+        LoginSucceeded uid ->
             ( { model | auth = LoggedIn uid }, Cmd.none )
 
         LoginRequested ->
-            ( model, login { email = model.email, password = model.password } )
+            ( model, login { email = model.emailEntry, password = model.passwordEntry } )
 
-        Resize viewportDims ->
+        WindowResized viewportDims ->
             ( { model
                 | viewportDims = viewportDims
               }
             , Cmd.none
             )
 
-        ToRoute route ->
+        RouteChangeRequested route ->
             ( model, modifyUrl (Route.routeToString route) )
 
         LocationChanged location ->
