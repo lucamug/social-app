@@ -1,29 +1,41 @@
 module Data exposing (..)
 
 import Route exposing (Route)
+import User exposing(User)
 import Navigation exposing(Location)
 import Msgs exposing(..)
 
 type alias Model =
     { viewportDims : { height : Int, width : Int }
     , auth : Auth
+    , uid : Maybe String
     , route : Route
     , usernameEntry: String
+    , users: List User
     , emailEntry: String
     , passwordEntry : String
     }
 
 init : { width : Int, height : Int } -> Location -> ( Model, Cmd Msg )
 init flags location =
+    let
+        route = Route.getRoute location
+    in
+        
     ( { viewportDims = flags
-      , auth = LoggedOut LoggingIn
-      , route = Route.getRoute location
+    --   , auth = LoggedOut LoggingIn
+      , auth = AwaitingAuth
+      , route = route
+      , uid = Nothing
       , usernameEntry = ""
+      , users = []
       , emailEntry = ""
       , passwordEntry = ""
       }
-    , Cmd.none
+    , Route.getRouteData route
     )
+
+
 
 
 
@@ -36,7 +48,7 @@ type ViewData
 
 
 type Auth
-    = LoggedIn String
+    = LoggedIn
     | LoggedOut LoggedOutStatus
     | AwaitingAuth
 

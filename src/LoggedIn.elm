@@ -1,14 +1,16 @@
 module LoggedIn exposing (..)
 
 import Data exposing (..)
-import Element exposing (Element, button, column, el, empty, html, row, screen, text, viewport)
+import Element exposing (Element, button, column, el, empty, h1, html, row, screen, text, viewport)
 import Element.Attributes exposing (..)
+import Html
+import List
 import List.Extra exposing (elemIndex)
 import Misc exposing (materialIcon, onClickPreventDefault)
 import Msgs exposing (..)
-import Update exposing(update)
 import Route exposing (Route(..))
 import Styles exposing (MyStyles(..), stylesheet)
+import Update exposing (update)
 
 
 viewLoggedIn : Model -> Element MyStyles variation Msg
@@ -32,22 +34,52 @@ viewLoggedIn model =
 
 viewContent : Model -> Element MyStyles variation Msg
 viewContent model =
-    let
-        val =
-            case model.route of
-                Conversations ->
-                    text "Conversations"
+    case model.route of
+        Conversations ->
+            text "Conversations"
 
-                Events ->
-                    el NoStyle [ verticalCenter, center ] (text "Events")
+        Events ->
+            el NoStyle [ verticalCenter, center ] (text "Events")
 
-                Wall ->
-                    el NoStyle [ verticalCenter, center ] (text "Wall")
+        Wall ->
+            el NoStyle [ verticalCenter, center ] (text "Wall")
 
-                People ->
-                    el NoStyle [ verticalCenter, center ] (text "People")
-    in
-    el NoStyle [ height fill ] val
+        Search ->
+                
+            column NoStyle
+                [ height fill
+                , width fill
+                ]
+                -- search bar
+                [ row YellowBar
+                    [ height (px 100)
+                    , center
+                    , verticalCenter
+                    ]
+                    [ text "TODO: search criteria" ]
+
+                --  results list
+                , row NoStyle
+                    [ height fill, width fill ]
+                    [ column NoStyle
+                        [ yScrollbar, width fill ]
+                        (List.map
+                            (\user ->
+
+                                -- result item
+                                row WhiteBg
+                                    [ height (px 80)
+                                    , width fill
+                                    , verticalCenter
+                                    , padding 15
+                                    , onClickPreventDefault (CreateConversationRequested user.id)
+                                    ]
+                                    [ text user.username ]
+                            )
+                            model.users
+                        )
+                    ]
+                ]
 
 
 viewTab : Route -> Element MyStyles variation Msg
@@ -56,7 +88,7 @@ viewTab selectedRoute =
         listTabs =
             [ ( "question_answer", Conversations )
             , ( "dns", Wall )
-            , ( "search", People )
+            , ( "search", Search )
             , ( "date_range", Events )
             ]
 
@@ -68,7 +100,9 @@ viewTab selectedRoute =
         (column NoStyle
             [ width (fillPortion 4) ]
             [ row NoStyle
-                [ width fill, height (px 50) ]
+                [ width fill
+                , height (px 50)
+                ]
                 (List.map viewTabButton listTabs)
             , viewTabUnderline (Maybe.withDefault 0 indexRoute) (List.length listTabs)
             ]

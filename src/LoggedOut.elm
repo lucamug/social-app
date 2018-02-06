@@ -8,7 +8,7 @@ import CreateProfile exposing(viewCreateProfile)
 import Html
 import Html.Attributes as Attr
 import Misc exposing (materialIcon, onClickPreventDefault)
-import Msgs exposing (Msg(ProfileCreationCanceled, CreateProfileRequested, EmailEdited, LoginRequested, PasswordEdited))
+import Msgs exposing (Msg(ProfileCreationCanceled, ProfileFormRequested, EmailEdited, LoginRequested, PasswordEdited))
 import Styles exposing (MyStyles(..))
 
 type alias Model =
@@ -65,7 +65,7 @@ viewLoggedOut loginStatus =
             [ center, padding 30 ]
             [ button NoStyle
                 [ padding 10
-                , onClickPreventDefault CreateProfileRequested
+                , onClickPreventDefault ProfileFormRequested
                 , class "waves-effect waves-light btn"
                 ]
                 (text "Create free profile")

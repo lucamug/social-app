@@ -2,10 +2,12 @@ module Update exposing (..)
 
 import Data exposing (..)
 import Navigation exposing (Location, modifyUrl)
-import Ports exposing (login, logout, newUser)
+import Ports exposing (login, logout, newUser, createConversation)
 import Msgs exposing(..)
-import Route exposing (Route, getRoute)
-import Window
+import Route exposing (Route, getRoute, getRouteData)
+import User
+import Result
+import Json.Decode exposing(list, decodeValue)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -25,23 +27,10 @@ update msg model =
         UsernameEdited username ->
             ( { model | usernameEntry = username }, Cmd.none )
 
-        LogOutRequested ->
-            ( model, logout "" )
 
-        LogOutSucceeded val ->
-            ( { model | auth = LoggedOut LoggingIn }, Cmd.none )
-
-        CreateProfileRequested ->
+        ProfileFormRequested ->
             ( { model | auth = LoggedOut CreatingAccount }, Cmd.none )
 
-        SubmitProfileRequested ->
-            ( model, newUser { username = model.usernameEntry, email = model.emailEntry, password = model.passwordEntry } ) 
- 
-        LoginSucceeded uid ->
-            ( { model | auth = LoggedIn uid }, Cmd.none )
-
-        LoginRequested ->
-            ( model, login { email = model.emailEntry, password = model.passwordEntry } )
 
         WindowResized viewportDims ->
             ( { model
@@ -50,6 +39,8 @@ update msg model =
             , Cmd.none
             )
 
+        ---- URL Request and change
+
         RouteChangeRequested route ->
             ( model, modifyUrl (Route.routeToString route) )
 
@@ -57,5 +48,39 @@ update msg model =
             let
                 _ =
                     Debug.log "location changed: " location
+                route = getRoute location
             in
-            ( { model | route = getRoute location }, Cmd.none )
+            ( { model | route = route}, getRouteData route)
+
+        ------ PORT OUTGOING REQUEST MESSAGES -----------------------
+
+        SubmitProfileRequested ->
+            ( model, newUser { username = model.usernameEntry, email = model.emailEntry, password = model.passwordEntry } ) 
+ 
+
+        LoginRequested ->
+            ( model, login { email = model.emailEntry, password = model.passwordEntry } )
+        
+        LogOutRequested ->
+            ( model, logout "" )
+        
+
+        ------ PORT SUBSCRIPTIONS MESSAGES --------------------------
+
+        LoginSucceeded uid ->
+            ( { model | auth = LoggedIn, uid = Just uid }, Cmd.none )
+
+        LogOutSucceeded val ->
+            ( { model | auth = LoggedOut LoggingIn }, Cmd.none )
+
+        UsersReceived usersJson ->
+            ( {model | users = Result.withDefault 
+            [] (decodeValue (list User.decoder) usersJson) }, Cmd.none )
+
+        CreateConversationRequested userId ->
+
+            let
+                _ = Debug.log "wassup" userId
+            in
+                
+            ( model, Cmd.none)

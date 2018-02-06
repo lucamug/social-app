@@ -9,7 +9,7 @@ import Update exposing(update)
 import Element exposing (..)
 import Element.Attributes exposing(..)
 import Navigation
-import Ports exposing (loggedIn, loggedOut)
+import Ports exposing (loggedIn, loggedOut, usersReceived)
 import Html
 import Window
 
@@ -25,7 +25,7 @@ view model =
                     LoggedOut status ->
                         viewLoggedOut status
 
-                    LoggedIn userId ->
+                    LoggedIn ->
                         viewLoggedIn model
 
                     AwaitingAuth ->
@@ -47,6 +47,7 @@ subscriptions model =
         [ Window.resizes WindowResized
         , loggedIn LoginSucceeded
         , loggedOut LogOutSucceeded
+        , usersReceived UsersReceived
         ]
 
 
