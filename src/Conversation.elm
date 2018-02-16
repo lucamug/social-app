@@ -26,6 +26,10 @@ type alias Conversation =
 --         [ image Avatar [ height (px 40), width (px 40), verticalCenter ] { src = "images/default-profile-pic.png", caption = "yo" }
 --         , el NoStyle [ center, verticalCenter ] (Element.text conversation.id)
 --         ]
+
+
+
+
 -- import AutoExpand
 --   model
 --     , autoExpandState : AutoExpand.State

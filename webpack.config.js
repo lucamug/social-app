@@ -1,6 +1,7 @@
 const path = require('path')
 const autoprefixer = require('autoprefixer')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = 
   { watch: true
@@ -104,7 +105,8 @@ module.exports =
       ]
     }
   , plugins: 
-    [  new HtmlWebpackPlugin({inject: true, template: './public/index.html'})
+    [ new HtmlWebpackPlugin({inject: true, template: './public/index.html'})
+    , new CopyWebpackPlugin([{from: 'public/images', to: 'images'}])
     ]
   , devServer:
     { historyApiFallback: true

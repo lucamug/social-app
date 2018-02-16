@@ -2,17 +2,14 @@ module Route exposing (..)
 
 import Maybe
 import Navigation exposing (Location)
-import Ports exposing (getAllUsers)
 import UrlParser as Url exposing (Parser, map, oneOf, parsePath, s, string)
-
+import Ports
 
 type Route
     = Conversations
     | Events
     | Wall
     | Search
-
-
 
 route : Parser (Route -> c) c
 route =
@@ -24,6 +21,7 @@ route =
         ]
 
 
+routeToString : Route -> String
 routeToString route =
     case route of
         Conversations ->
@@ -43,15 +41,17 @@ getRoute : Location -> Route
 getRoute location =
     Maybe.withDefault Conversations (parsePath route location)
 
-
-getRouteData : Route -> Cmd msg
-getRouteData route =
+fetchRouteData : Route -> Cmd msg
+fetchRouteData route =
     case route of
         Conversations ->
             Cmd.none
+
         Events ->
             Cmd.none
+
         Wall ->
             Cmd.none
+
         Search ->
-            getAllUsers True
+            Ports.getAllOtherUsers ()

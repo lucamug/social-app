@@ -1,17 +1,18 @@
 port module Ports exposing (..)
 
-import Json.Decode
-import User exposing (User)
+import Json.Decode as De
+
 
 -- To Javascript
-port newUser : {username: String, email: String, password: String} -> Cmd msg
-port login   : {email: String, password: String} -> Cmd msg
-port logout   : String -> Cmd msg
-port createConversation: {myUserId: String, otherUserId: String} -> Cmd msg
-port getAllUsers: Bool -> Cmd msg
-
+port newUser : { username : String, email : String, password : String } -> Cmd msg
+port login : { email : String, password : String } -> Cmd msg
+port logout : () -> Cmd msg
+port createConversation : String -> Cmd msg  -- arg:  otherUserId
+port getAllOtherUsers : () -> Cmd msg
+port initSidenav: () -> Cmd msg
+port openSidenav: () -> Cmd msg
 
 -- To Elm
-port loggedIn : (String -> msg) -> Sub msg
-port loggedOut : (String -> msg) -> Sub msg
-port usersReceived: (Json.Decode.Value -> msg) -> Sub msg
+port loggedIn : (() -> msg) -> Sub msg
+port loggedOut : (() -> msg) -> Sub msg
+port usersReceived : (De.Value -> msg) -> Sub msg

@@ -1,3 +1,32 @@
+Kasidie mobile:
+
+Wall
+  - Wall
+
+Chat
+  - Mail
+  - Chat Rooms
+  - Chat
+
+Search
+  - Communities
+  - Validations
+  - Forums
+  - Whos viewing me
+  - Whos online
+
+Events
+  - Parties
+  - Rediezvous
+  - Travel
+  - Clubs
+
+
+My Profile
+  - Settings
+
+
+
 Todos:
   images
   color options

@@ -1,6 +1,6 @@
 module Styles exposing (..)
 
-import Color exposing (black, blue, darkGrey, lightBlue, red, white, yellow)
+import Color exposing (black, blue, darkGrey, lightBlue, red, white, yellow, green)
 import Style exposing (StyleSheet, style)
 import Style.Border as Border
 import Style.Color as Color
@@ -14,6 +14,7 @@ type MyStyles
     | NoStyle
     | Avatar
     | YellowBar
+    | GreenBar
     | Header
     | WhiteBg
     | Modal
@@ -30,6 +31,7 @@ stylesheet =
             [ Color.background lightBlue
             ]
         , style YellowBar [ Color.background yellow ]
+        , style GreenBar [ Color.background green ]
         , style WhiteBg [ Color.background white ]
         , style Header [ Color.background blue ]
         , style Button
@@ -39,7 +41,7 @@ stylesheet =
             , Border.rounded 8
             ]
         , style Pusher [ transitions [ Transition 0 130 "ease-in" [ "width" ] ] ]
-        , style Modal [ transitions [ Transition 0 230 "ease-in" [ "left" ] ] ]
+        , style Modal [ transitions [ Transition 0 230 "ease-in" [ "left", "right" ] ] ]
         , style Main [ Color.background darkGrey ]
         , style Underline []
         , style NoStyle []
