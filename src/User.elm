@@ -15,4 +15,4 @@ decoder =
     decode User
         |> required "id" string
         |> required "username" string
-        |> required "photoUrl" (nullable string)
+        |> required "photoUrlCouple" (nullable string)

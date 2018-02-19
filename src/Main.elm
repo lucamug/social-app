@@ -1,19 +1,17 @@
 module Main exposing (view)
 
 import LoggedOut exposing (viewLoggedOut)
-import LoggedIn exposing (viewLoggedIn, Msg(..))
+import LoggedIn
 import Styles exposing (MyStyles(NoStyle), stylesheet)
 import Element exposing (..)
 import Element.Attributes exposing (..)
 import Ports
+import User
 import Json.Decode as De
 import Html
 import Window
 import Navigation exposing (Location, modifyUrl)
 import Route exposing (Route, getRoute, fetchRouteData)
-
-
--- import Msgs exposing (..)
 
 
 type alias Model =
@@ -43,7 +41,7 @@ type Msg
     | WindowResized Window.Size
     | LogErr String
     | LocationChanged Location
-    | LoginSuccessful ()
+    | LoginSuccessful De.Value 
     | LogoutSuccessful ()
 
     | LoggedOutMsg LoggedOut.Msg
@@ -106,8 +104,8 @@ update msg model =
         LogoutSuccessful () ->
             { model | auth = LoggedOut LoggedOut.initialModel } ! []
 
-        LoginSuccessful () ->
-            { model | auth = LoggedIn LoggedIn.initialModel }
+        LoginSuccessful user ->
+            { model | auth = LoggedIn (LoggedIn.initialModel (Result.withDefault {id="", photoUrl=Nothing, username=""} <| De.decodeValue User.decoder user))}
                 ! [ Route.fetchRouteData model.route
                   , Ports.initSidenav ()
                   ]
@@ -127,7 +125,7 @@ view model =
                         Element.map LoggedOutMsg (viewLoggedOut subModel)
 
                     LoggedIn subModel ->
-                        Element.map LoggedInMsg (viewLoggedIn subModel model.route)
+                        Element.map LoggedInMsg (LoggedIn.viewLoggedIn subModel model.route)
 
                     AwaitingAuth ->
                         text "awaiting"
@@ -146,9 +144,8 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Window.resizes WindowResized
-
-        -- , Ports.getInfoFromOutside
-        , Ports.usersReceived (LoggedInMsg << UsersReceived)
+        , Ports.usersReceived (LoggedInMsg << LoggedIn.UsersReceived)
+        , Ports.convsReceived (LoggedInMsg << LoggedIn.ConvsReceived)
         , Ports.loggedIn LoginSuccessful
         , Ports.loggedOut LogoutSuccessful
         ]

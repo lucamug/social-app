@@ -45,7 +45,10 @@ fetchRouteData : Route -> Cmd msg
 fetchRouteData route =
     case route of
         Conversations ->
-            Cmd.none
+            Ports.listenToConvMetas ()
+        
+        -- Conversation conv ->
+        --     Ports.listenToConv conv
 
         Events ->
             Cmd.none

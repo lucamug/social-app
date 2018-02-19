@@ -163,6 +163,7 @@ viewLoggedOut model =
         ]
 
 
+viewCreateProfile : Model -> Element.Element MyStyles variation Msg
 viewCreateProfile model =
     let
         leftValue =
@@ -171,10 +172,9 @@ viewCreateProfile model =
             else
                 "-100%"
     in
-        screen
-            (column Modal
-                [ inlineStyle
-                    [ ( "left", leftValue ) ]
+        screen <|
+            column Modal
+                [ inlineStyle [ ( "left", leftValue ) ]
                 , width fill
                 , height fill
                 ]
@@ -203,11 +203,7 @@ viewCreateProfile model =
                             [ paddingLeft 10 ]
                             (Text UsernameEdited
                                 model.usernameEntry
-                                (placeholder
-                                    { text = "Username"
-                                    , label = hiddenLabel ""
-                                    }
-                                )
+                                (placeholder { text = "Username" , label = hiddenLabel "" })
                                 []
                             )
                         ]
@@ -220,11 +216,7 @@ viewCreateProfile model =
                             [ paddingLeft 10 ]
                             (Text EmailEdited
                                 model.emailEntry
-                                (placeholder
-                                    { text = "Email"
-                                    , label = hiddenLabel ""
-                                    }
-                                )
+                                (placeholder { text = "Email" , label = hiddenLabel "" })
                                 []
                             )
                         ]
@@ -235,11 +227,7 @@ viewCreateProfile model =
                             [ paddingLeft 10 ]
                             (Text PasswordEdited
                                 model.passwordEntry
-                                (placeholder
-                                    { text = "Password"
-                                    , label = hiddenLabel ""
-                                    }
-                                )
+                                (placeholder { text = "Password" , label = hiddenLabel "" })
                                 []
                             )
                         ]
@@ -257,4 +245,3 @@ viewCreateProfile model =
                         ]
                     ]
                 ]
-            )

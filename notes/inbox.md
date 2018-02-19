@@ -26,6 +26,13 @@ My Profile
   - Settings
 
 
+Reem input:
+too many things
+require pics for men
+able to see only what you're really looking for.
+quick to find people
+easy short profile
+dinner meetups 
 
 Todos:
   images

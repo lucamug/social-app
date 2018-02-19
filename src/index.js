@@ -1,13 +1,16 @@
 import './main.css';
+import * as _ from 'lodash'
 import { db, auth, msging, storage } from './firebase.js'
 import { Main } from './Main.elm';
 import registerServiceWorker from './registerServiceWorker';
+import idbKeyval from 'idb-keyval'
+console.log('idb', idbKeyval)
 
 var app = Main.fullscreen({ width: window.innerWidth, height: window.innerHeight });
 registerServiceWorker();
 
 let myUserId = null;
-let instance = null;
+let unsubscribe = null;
 
 app.ports.newUser.subscribe(async ({ username, email, password }) => {
   try {
@@ -37,9 +40,25 @@ app.ports.getAllOtherUsers.subscribe(async () => {
       doc => ({
         id: doc.id,
         username: doc.data().username,
-        photoUrl: doc.data().photoUrlCouple
+        photoUrlCouple: doc.data().photoUrlCouple
       })
     ))
+})
+
+app.ports.listenToConvMetas.subscribe(() => {
+  if (unsubscribe) {
+    unsubscribe()
+  }
+  unsubscribe = db.collection('conversations').where(`members.${myUserId}.display`, '==', true).onSnapshot(snap => {
+    const docs = snap.docs.map(doc => {
+      doc = _.assign(doc.data(), { id: doc.id })
+      doc.conversationOwner = Object.keys(doc.conversationOwner)[0]
+      doc.members = _.map(doc.members, (member, key) => _.assign(member, { id: key }))
+      return doc
+    })
+    app.ports.convsReceived.send(docs)
+
+  })
 })
 
 app.ports.login.subscribe(({ email, password }) => {
@@ -54,10 +73,11 @@ app.ports.createConversation.subscribe(async otherUserId => {
   // store conversation details record
 
   // first see if in a conversation
+
   const querySnap = await db.collection('conversations')
     .where(`members.${myUserId}.display`, '==', true)
     .where(`members.${otherUserId}.display`, '==', true).get()
-  console.log(querySnap.docs.length)
+
   if (querySnap.docs.length) return
 
 
@@ -66,13 +86,13 @@ app.ports.createConversation.subscribe(async otherUserId => {
 
   const convDocRef = db.collection('conversations').doc()
   convDocRef.set({
-    conversatonOwner: { [myUserId]: true },
+    conversationOwner: { [myUserId]: true },
     conversationType: ['secret', 'public', 'privileged',],
     members: {
       [myUserId]: Object.assign({ display: true }, myUser),
       [otherUserId]: Object.assign({ display: true }, otherUser)
     },
-    lastMessage: { content: '', timestamp: 0 }
+    lastMessage: null
   })
 
   // add first message bundle and typers docs
@@ -86,10 +106,12 @@ app.ports.createConversation.subscribe(async otherUserId => {
 })
 
 auth.onAuthStateChanged(
-  user => {
+  async user => {
     if (user) {
+      // query database for my info.  Note:  __name__ is the key of the field in firestore
       myUserId = user.uid
-      app.ports.loggedIn.send(null)
+      const me = _.assign({ id: user.uid }, (await db.collection('users').where('__name__', '==', user.uid).get()).docs[0].data())
+      app.ports.loggedIn.send(me)
     } else {
       app.ports.loggedOut.send(null)
     }

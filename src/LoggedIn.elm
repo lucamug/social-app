@@ -17,15 +17,17 @@ import Conversation exposing (Conversation)
 type alias Model =
     { users : List User
     , conversations : List Conversation
-    , menu : Bool
+    , myUid : User
+    , showMenu : Bool
     }
 
 
-initialModel : Model
-initialModel =
+initialModel : User -> Model
+initialModel user =
     { users = []
     , conversations = []
-    , menu = False
+    , myUid = user
+    , showMenu = False
     }
 
 
@@ -36,15 +38,16 @@ type Msg
     | RouteChangeRequested Route
     | LogOutRequested
     | UsersReceived De.Value
+    | ConvsReceived De.Value
 
 
 update msg model =
     case msg of
         OpenSidenavRequested ->
-            { model | menu = True } ! []
+            { model | showMenu = True } ! []
 
         CloseSidenavRequested ->
-            { model | menu = False } ! []
+            { model | showMenu = False } ! []
 
         CreateConversationRequested userId ->
             model
@@ -60,6 +63,9 @@ update msg model =
 
         UsersReceived usersValue ->
             { model | users = Result.withDefault [] <| decodeValue (De.list User.decoder) usersValue } ! []
+
+        ConvsReceived convsValue ->
+            { model | conversations = Result.withDefault [] <| decodeValue (De.list Conversation.decoder) convsValue } ! []
 
 
 viewLoggedIn : Model -> Route -> Element MyStyles variation Msg
@@ -79,6 +85,7 @@ viewLoggedIn model route =
                 [ materialIcon "menu" "dark" ]
             ]
         , viewSidenav model
+        , viewConversationPanel model
         ]
 
 
@@ -87,7 +94,7 @@ viewContent model route =
     el NoStyle [height fill, width fill](
     case route of
         Conversations ->
-            viewConversationsPanel model.users
+            viewConversationsPanel model.conversations
 
         Events ->
             el NoStyle [ verticalCenter, center ] (text "Events")
@@ -122,7 +129,7 @@ viewConversationsPanel conversations =
             ]
         ]
 
-viewConversationItem : { a | id : String } -> Element MyStyles variation Msg
+viewConversationItem : Conversation -> Element MyStyles variation Msg
 viewConversationItem conversation =
     row WhiteBg
         [ height (px 80)
@@ -130,14 +137,14 @@ viewConversationItem conversation =
         , spacing 10
         , verticalCenter
         , padding 15
-        , onClickPreventDefault (CreateConversationRequested conversation.id)
+        -- , onClickPreventDefault (ConversationRequested conversation.id)
         ]
         [ image Avatar
             [ height (px 45) ]
             { src = "images/default-profile-pic.png"
             , caption = "Yo"
             }
-        , text "Some shit here"
+        , text (String.join ", " (List.map .username conversation.members))
         ]
 
 
@@ -238,13 +245,13 @@ viewTabButton ( iconName, route ) =
 viewSidenav model =
     let
         rightValue =
-            if model.menu == True then
+            if model.showMenu == True then
                 "0"
             else
                 "100%"
     in
-        screen
-            (column Modal
+        screen <|
+            column Modal
                 [ inlineStyle
                     [ ( "left", rightValue ) ]
                 , width fill
@@ -274,4 +281,46 @@ viewSidenav model =
                         ]
                     ]
                 ]
-            )
+            
+viewConversationPanel model =
+    let
+        rightValue =
+            if model.showMenu == True then
+                "0"
+            else
+                "100%"
+    in
+        screen <|
+            column Modal
+                [ inlineStyle
+                    [ ( "left", rightValue ) ]
+                , width fill
+                , height fill
+                ]
+                [ row YellowBar
+                    [ width fill
+                    , height (px 60)
+                    , padding 10
+                    , alignLeft
+                    , verticalCenter
+                    ]
+                    [ el NoStyle
+                        [ class "btn-floating waves-effect btn-flat red"
+                        , width (px 40)
+                        , onClickPreventDefault CloseSidenavRequested
+                        ]
+                        (materialIcon "chevron_right" "white")
+                    , row NoStyle [ center, width fill ] [ text "SideNav" ]
+                    ]
+                , column WhiteBg
+                    [ verticalCenter, spacing 20, padding 30, height fill ]
+                    [ row NoStyle
+                        [ onClickPreventDefault LogOutRequested ]
+                        [ materialIcon "settings" "green"
+                        , text " Logout"
+                        ]
+                    ]
+                ]
+    -- screen 
+    --     <| el Modal [width fill, height fill] 
+    --     <| el YellowBar [width fill, height fill] (text "Blank")
