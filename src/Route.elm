@@ -23,7 +23,7 @@ route =
 
 routeToString : Route -> String
 routeToString route =
-    case route of
+    case route of 
         Conversations ->
             "conversations"
 

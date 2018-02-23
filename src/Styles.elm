@@ -17,11 +17,13 @@ type MyStyles
     | GreenBar
     | Header
     | WhiteBg
+    | FaintGrayBg
     | Modal
     | Button
     | Sidebar
     | Main
     | Underline
+
 
 
 stylesheet : StyleSheet MyStyles variation
@@ -33,6 +35,7 @@ stylesheet =
         , style YellowBar [ Color.background yellow ]
         , style GreenBar [ Color.background green ]
         , style WhiteBg [ Color.background white ]
+        , style FaintGrayBg [ Color.background <| Color.rgb 225 225 225 ]
         , style Header [ Color.background blue ]
         , style Button
             [ Color.text (Color.rgb 256 256 256)

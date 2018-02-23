@@ -15,7 +15,6 @@ type alias Conversation =
     }
 
 
-
 -----------Serialization---------------------
 
 
@@ -44,28 +43,3 @@ decoder =
 --         [ image Avatar [ height (px 40), width (px 40), verticalCenter ] { src = "images/default-profile-pic.png", caption = "yo" }
 --         , el NoStyle [ center, verticalCenter ] (Element.text conversation.id)
 --         ]
--- import AutoExpand
---   model
---     , autoExpandState : AutoExpand.State
---     init
---       , autoExpandState = AutoExpand.initState config
--- typeConvMsg
---     = AutoExpandInput { textValue : String, state : AutoExpand.State }
---         AutoExpandInput expandState ->
---             ( { model | autoExpandState = expandState }, Cmd.none )
--- viewTextInput {expandState, textInput} =
---     html
---         (AutoExpand.view
---             config
---             expandState
---             textInput
---         )
--- config : AutoExpand.Config Msg
--- config =
---     AutoExpand.config
---         { onInput = AutoExpandInput
---         , padding = 10
---         , lineHeight = 20
---         , minRows = 1
---         , maxRows = 4
---         }

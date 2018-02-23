@@ -1,44 +1,76 @@
 module LoggedIn exposing (..)
 
+import AutoExpand
 import Element exposing (Element, toHtml, image, button, column, el, empty, h1, html, row, screen, text, viewport)
-import Route exposing (..)
 import Element.Attributes exposing (..)
 import List
 import List.Extra exposing (elemIndex)
 import Misc exposing (materialIcon, onClickPreventDefault)
 import Styles exposing (MyStyles(..), stylesheet)
-import Navigation exposing (modifyUrl)
 import Json.Decode as De exposing (decodeValue)
 import Ports
 import User exposing (User)
+import Message exposing(Message)
 import Conversation exposing (Conversation)
 
 
+config : AutoExpand.Config Msg
+config =
+    AutoExpand.config
+        { onInput = AutoExpandInput
+        , padding = 10
+        , lineHeight = 20
+        , minRows = 1
+        , maxRows = 10
+        }
+        |> AutoExpand.withStyles [("height", "auto"), ("border", "none"), ("outline", "none"), ("box-shadow", "none")]
+        |> AutoExpand.withPlaceholder "Type a message"
+
 type alias Model =
     { users : List User
-    , conversations : List Conversation
-    , myUid : User
+    , conversations : Maybe (List Conversation)
+    , messages: Maybe (List Message)
+    , myUserInfo : User
     , showMenu : Bool
+    , activeConversation : Maybe Conversation
+    , selectedTab : TabBarTab
+    , autoExpand : AutoExpand.State
+    , textInput: String
     }
 
 
 initialModel : User -> Model
 initialModel user =
     { users = []
-    , conversations = []
-    , myUid = user
+    , conversations = Nothing
+    , messages = Nothing
+    , myUserInfo = user
     , showMenu = False
+    , activeConversation = Nothing
+    , selectedTab = Conversations
+    , autoExpand = AutoExpand.initState config
+    , textInput = ""
     }
+
+type TabBarTab
+    = Conversations
+    | Events
+    | Wall
+    | Search
 
 
 type Msg
     = OpenSidenavRequested
     | CloseSidenavRequested
+    | ViewConversationRequested String
+    | CancelConversationRequested
     | CreateConversationRequested String
-    | RouteChangeRequested Route
+    | TabRequested TabBarTab
     | LogOutRequested
     | UsersReceived De.Value
-    | ConvsReceived De.Value
+    | ConvsMetaReceived De.Value
+    | ConvReceived De.Value
+    | AutoExpandInput { textValue : String, state : AutoExpand.State }
 
 
 update msg model =
@@ -50,13 +82,13 @@ update msg model =
             { model | showMenu = False } ! []
 
         CreateConversationRequested userId ->
-            model
-                ! [ Ports.createConversation userId
-                  , modifyUrl <| "conversations"
-                  ]
+            model ! [ Ports.createConversation userId ]
 
-        RouteChangeRequested route ->
-            model ! [ modifyUrl <| Route.routeToString route ]
+        ViewConversationRequested convId ->
+            model ! [ Ports.listenToConversation convId ]
+
+        TabRequested tab ->
+            { model | selectedTab = tab } ! []
 
         LogOutRequested ->
             model ! [ Ports.logout () ]
@@ -64,18 +96,27 @@ update msg model =
         UsersReceived usersValue ->
             { model | users = Result.withDefault [] <| decodeValue (De.list User.decoder) usersValue } ! []
 
-        ConvsReceived convsValue ->
-            { model | conversations = Result.withDefault [] <| decodeValue (De.list Conversation.decoder) convsValue } ! []
+        ConvsMetaReceived convsValue ->
+            { model | conversations = Result.toMaybe <| decodeValue (De.list Conversation.decoder) convsValue } ! []
+
+        ConvReceived messageList ->
+            { model | messages = Result.toMaybe <| decodeValue (De.list Message.decoder) messageList } ! []
+        
+        CancelConversationRequested ->
+            model ! [Ports.cancelConversation ()]
+
+        AutoExpandInput {state, textValue} ->
+            { model | autoExpand = state, textInput = textValue } ! []
 
 
-viewLoggedIn : Model -> Route -> Element MyStyles variation Msg
-viewLoggedIn model route =
+viewLoggedIn : Model -> Element MyStyles variation Msg
+viewLoggedIn model =
     column Main
         [ height fill, minHeight (percent 100), clip ]
-        [ viewContent model route
+        [ viewContent model
         , row NavBar
             []
-            [ viewTab route
+            [ viewTab model.selectedTab
             , row NoStyle
                 [ center
                 , verticalCenter
@@ -89,25 +130,30 @@ viewLoggedIn model route =
         ]
 
 
-viewContent : Model -> Route -> Element MyStyles variation Msg
-viewContent model route =
-    el NoStyle [height fill, width fill](
-    case route of
-        Conversations ->
-            viewConversationsPanel model.conversations
+viewContent : Model -> Element MyStyles variation Msg
+viewContent model =
+    el NoStyle
+        [ height fill, width fill ]
+        (case model.selectedTab of
+            Conversations ->
+                case model.conversations of 
+                    Nothing ->
+                        el NoStyle [] (text "loading convs..")
+                    Just convs ->
+                        viewConversationsPanel model.myUserInfo.id convs
 
-        Events ->
-            el NoStyle [ verticalCenter, center ] (text "Events")
+            Events ->
+                el NoStyle [ verticalCenter, center ] (text "Events")
 
-        Wall ->
-            el NoStyle [ verticalCenter, center ] (text "Wall")
+            Wall ->
+                el NoStyle [ verticalCenter, center ] (text "Wall")
 
-        Search ->
-            viewSearchPanel model.users
-    )
+            Search ->
+                viewSearchPanel model.users
+        )
 
 
-viewConversationsPanel conversations =
+viewConversationsPanel myId convs =
     column NoStyle
         [ height fill
         , width fill
@@ -125,26 +171,30 @@ viewConversationsPanel conversations =
             [ height fill, width fill ]
             [ column NoStyle
                 [ yScrollbar, width fill ]
-                (List.map viewConversationItem conversations)
+                (List.map (viewConversationItem myId) convs )
             ]
         ]
 
-viewConversationItem : Conversation -> Element MyStyles variation Msg
-viewConversationItem conversation =
+
+viewConversationItem myId conversation =
     row WhiteBg
         [ height (px 80)
         , width fill
         , spacing 10
         , verticalCenter
         , padding 15
-        -- , onClickPreventDefault (ConversationRequested conversation.id)
+        , onClickPreventDefault (ViewConversationRequested conversation.id)
         ]
         [ image Avatar
             [ height (px 45) ]
             { src = "images/default-profile-pic.png"
             , caption = "Yo"
             }
-        , text (String.join ", " (List.map .username conversation.members))
+        , conversation.members
+            |> List.filter (\member -> member.id /= myId)
+            |> List.map .username
+            |> String.join ", "
+            |> text
         ]
 
 
@@ -189,8 +239,8 @@ viewSearchResultItem user =
         ]
 
 
-viewTab : Route -> Element MyStyles variation Msg
-viewTab selectedRoute =
+viewTab : TabBarTab -> Element MyStyles variation Msg
+viewTab selectedTab =
     let
         listTabs =
             [ ( "question_answer", Conversations )
@@ -201,9 +251,9 @@ viewTab selectedRoute =
 
         indexRoute =
             List.map Tuple.second listTabs
-                |> elemIndex selectedRoute
+                |> elemIndex selectedTab
     in
-        Element.map RouteChangeRequested
+        Element.map TabRequested
             (column NoStyle
                 [ width (fillPortion 4) ]
                 [ row NoStyle
@@ -231,11 +281,11 @@ viewTabUnderline index length =
             ]
 
 
-viewTabButton : ( String, Route ) -> Element MyStyles variation Route
-viewTabButton ( iconName, route ) =
+viewTabButton : ( String, TabBarTab ) -> Element MyStyles variation TabBarTab
+viewTabButton ( iconName, tab ) =
     row NoStyle
         [ width (fillPortion 1)
-        , onClickPreventDefault route
+        , onClickPreventDefault tab
         , center
         , verticalCenter
         ]
@@ -281,14 +331,16 @@ viewSidenav model =
                         ]
                     ]
                 ]
-            
+
+
 viewConversationPanel model =
     let
         rightValue =
-            if model.showMenu == True then
-                "0"
-            else
-                "100%"
+            case model.messages of
+                Nothing ->
+                    "100%"
+                Just messages ->
+                    "0"
     in
         screen <|
             column Modal
@@ -304,23 +356,21 @@ viewConversationPanel model =
                     , alignLeft
                     , verticalCenter
                     ]
-                    [ el NoStyle
+                    [ row NoStyle [ center, width fill ] [ text "Conversation" ]
+                    , el NoStyle
                         [ class "btn-floating waves-effect btn-flat red"
                         , width (px 40)
-                        , onClickPreventDefault CloseSidenavRequested
+                        , onClickPreventDefault CancelConversationRequested 
                         ]
                         (materialIcon "chevron_right" "white")
-                    , row NoStyle [ center, width fill ] [ text "SideNav" ]
                     ]
-                , column WhiteBg
-                    [ verticalCenter, spacing 20, padding 30, height fill ]
-                    [ row NoStyle
-                        [ onClickPreventDefault LogOutRequested ]
-                        [ materialIcon "settings" "green"
-                        , text " Logout"
-                        ]
-                    ]
+                , column FaintGrayBg
+                    [ spacing 20, padding 30, height fill ]
+                    []
+                , viewTextInput model
+
                 ]
-    -- screen 
-    --     <| el Modal [width fill, height fill] 
-    --     <| el YellowBar [width fill, height fill] (text "Blank")
+
+
+viewTextInput { autoExpand, textInput } =
+    el WhiteBg [] <| html <| AutoExpand.view config autoExpand textInput

@@ -105,7 +105,7 @@ update msg model =
             { model | auth = LoggedOut LoggedOut.initialModel } ! []
 
         LoginSuccessful user ->
-            { model | auth = LoggedIn (LoggedIn.initialModel (Result.withDefault {id="", photoUrl=Nothing, username=""} <| De.decodeValue User.decoder user))}
+            { model | auth = LoggedIn (LoggedIn.initialModel (Result.withDefault {id="" , photoUrl=Nothing, username=""} <| De.decodeValue User.decoder user))}
                 ! [ Route.fetchRouteData model.route
                   , Ports.initSidenav ()
                   ]
@@ -125,7 +125,7 @@ view model =
                         Element.map LoggedOutMsg (viewLoggedOut subModel)
 
                     LoggedIn subModel ->
-                        Element.map LoggedInMsg (LoggedIn.viewLoggedIn subModel model.route)
+                        Element.map LoggedInMsg (LoggedIn.viewLoggedIn subModel)
 
                     AwaitingAuth ->
                         text "awaiting"
@@ -145,7 +145,8 @@ subscriptions model =
     Sub.batch
         [ Window.resizes WindowResized
         , Ports.usersReceived (LoggedInMsg << LoggedIn.UsersReceived)
-        , Ports.convsReceived (LoggedInMsg << LoggedIn.ConvsReceived)
+        , Ports.convsMetaReceived (LoggedInMsg << LoggedIn.ConvsMetaReceived)
+        , Ports.messagesReceived (LoggedInMsg << LoggedIn.ConvReceived)
         , Ports.loggedIn LoginSuccessful
         , Ports.loggedOut LogoutSuccessful
         ]
