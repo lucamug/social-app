@@ -9,7 +9,7 @@ port login : { email : String, password : String } -> Cmd msg
 port logout : () -> Cmd msg
 port createConversation : String -> Cmd msg  -- arg:  otherUserId
 port listenToConvMetas: () -> Cmd msg
-port listenToConversation: String -> Cmd msg
+port listenToMessages: String -> Cmd msg
 port cancelConversation: () -> Cmd msg
 port getAllOtherUsers : () -> Cmd msg
 port initSidenav: () -> Cmd msg

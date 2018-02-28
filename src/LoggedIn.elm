@@ -3,54 +3,60 @@ module LoggedIn exposing (..)
 import AutoExpand
 import Element exposing (Element, toHtml, image, button, column, el, empty, h1, html, row, screen, text, viewport)
 import Element.Attributes exposing (..)
-import List
+import Dict exposing (Dict)
 import List.Extra exposing (elemIndex)
 import Misc exposing (materialIcon, onClickPreventDefault)
 import Styles exposing (MyStyles(..), stylesheet)
-import Json.Decode as De exposing (decodeValue)
+import Json.Decode as De exposing (decodeValue, string)
 import Ports
+import MyInfo exposing (MyInfo)
 import User exposing (User)
-import Message exposing(Message)
-import Conversation exposing (Conversation)
+import Message exposing (Message)
+import ConversationMeta exposing (ConversationMeta)
 
 
-config : AutoExpand.Config Msg
-config =
+config conversationId =
     AutoExpand.config
-        { onInput = AutoExpandInput
+        { onInput = AutoExpandInput conversationId
         , padding = 10
         , lineHeight = 20
         , minRows = 1
         , maxRows = 10
         }
-        |> AutoExpand.withStyles [("height", "auto"), ("border", "none"), ("outline", "none"), ("box-shadow", "none")]
+        |> AutoExpand.withStyles [ ( "height", "auto" ), ( "border", "none" ), ( "outline", "none" ), ( "box-shadow", "none" ) ]
         |> AutoExpand.withPlaceholder "Type a message"
 
+
 type alias Model =
-    { users : List User
-    , conversations : Maybe (List Conversation)
-    , messages: Maybe (List Message)
-    , myUserInfo : User
+    { users : Dict String User
+    , conversationMetas : Dict String ConversationMeta
+    , conversationMessages : Dict String (List Message)
+    , conversationExtras : Dict String { autoExpand : AutoExpand.State, textInput : String }
+    , me : MyInfo
     , showMenu : Bool
-    , activeConversation : Maybe Conversation
+    , activeConversation : Maybe String
     , selectedTab : TabBarTab
-    , autoExpand : AutoExpand.State
-    , textInput: String
+
+    -- , autoExpand : AutoExpand.State
+    -- , textInput : String
     }
 
 
-initialModel : User -> Model
-initialModel user =
-    { users = []
-    , conversations = Nothing
-    , messages = Nothing
-    , myUserInfo = user
+initialModel : MyInfo -> Model
+initialModel myInfo =
+    { users = Dict.empty
+    , conversationMetas = Dict.empty
+    , conversationMessages = Dict.empty
+    , conversationExtras = Dict.empty
+    , me = myInfo
     , showMenu = False
     , activeConversation = Nothing
     , selectedTab = Conversations
-    , autoExpand = AutoExpand.initState config
-    , textInput = ""
+
+    -- , autoExpand = AutoExpand.initState config
+    -- , textInput = ""
     }
+
 
 type TabBarTab
     = Conversations
@@ -69,8 +75,8 @@ type Msg
     | LogOutRequested
     | UsersReceived De.Value
     | ConvsMetaReceived De.Value
-    | ConvReceived De.Value
-    | AutoExpandInput { textValue : String, state : AutoExpand.State }
+    | MessagesReceived De.Value
+    | AutoExpandInput String { textValue : String, state : AutoExpand.State }
 
 
 update msg model =
@@ -84,9 +90,6 @@ update msg model =
         CreateConversationRequested userId ->
             model ! [ Ports.createConversation userId ]
 
-        ViewConversationRequested convId ->
-            model ! [ Ports.listenToConversation convId ]
-
         TabRequested tab ->
             { model | selectedTab = tab } ! []
 
@@ -94,19 +97,46 @@ update msg model =
             model ! [ Ports.logout () ]
 
         UsersReceived usersValue ->
-            { model | users = Result.withDefault [] <| decodeValue (De.list User.decoder) usersValue } ! []
+            { model | users = Result.withDefault Dict.empty <| decodeValue (De.dict User.decoder) usersValue } ! []
 
         ConvsMetaReceived convsValue ->
-            { model | conversations = Result.toMaybe <| decodeValue (De.list Conversation.decoder) convsValue } ! []
+            { model | conversationMetas = Result.withDefault Dict.empty <| decodeValue (De.dict ConversationMeta.decoder) convsValue } ! []
 
-        ConvReceived messageList ->
-            { model | messages = Result.toMaybe <| decodeValue (De.list Message.decoder) messageList } ! []
-        
+        ViewConversationRequested convId ->
+            let
+                conversationExtras =
+                    Dict.update convId
+                        (\v ->
+                            case v of
+                                Nothing ->
+                                    Just { autoExpand = AutoExpand.initState (config convId), textInput = "" }
+
+                                Just val ->
+                                    Just val
+                        )
+                        model.conversationExtras
+            in
+                { model | activeConversation = Just convId, conversationExtras = conversationExtras } ! [ Ports.listenToMessages convId ]
+
+        MessagesReceived messageList ->
+            let
+                { convId, messages } =
+                    messageList
+                        |> decodeValue
+                            (De.map2 (\convId messages -> { convId = convId, messages = messages })
+                                (De.field "convId" string)
+                                (De.field "messages" (De.list Message.decoder))
+                            )
+                        |> Result.withDefault { convId = "", messages = [] }
+            in
+                { model | conversationMessages = Dict.insert convId messages model.conversationMessages } ! []
+
         CancelConversationRequested ->
-            model ! [Ports.cancelConversation ()]
+            { model | activeConversation = Nothing } ! [ Ports.cancelConversation () ]
 
-        AutoExpandInput {state, textValue} ->
-            { model | autoExpand = state, textInput = textValue } ! []
+        AutoExpandInput convId { state, textValue } ->
+            -- { model | autoExpand = state, textInput = textValue } ! []
+            { model | conversationExtras = Dict.insert convId { autoExpand = state, textInput = textValue } model.conversationExtras } ! []
 
 
 viewLoggedIn : Model -> Element MyStyles variation Msg
@@ -136,11 +166,7 @@ viewContent model =
         [ height fill, width fill ]
         (case model.selectedTab of
             Conversations ->
-                case model.conversations of 
-                    Nothing ->
-                        el NoStyle [] (text "loading convs..")
-                    Just convs ->
-                        viewConversationsPanel model.myUserInfo.id convs
+                viewConversationsPanel model.me.myUserId model.conversationMetas
 
             Events ->
                 el NoStyle [ verticalCenter, center ] (text "Events")
@@ -153,7 +179,7 @@ viewContent model =
         )
 
 
-viewConversationsPanel myId convs =
+viewConversationsPanel myId convMetas =
     column NoStyle
         [ height fill
         , width fill
@@ -164,79 +190,91 @@ viewConversationsPanel myId convs =
             , center
             , verticalCenter
             ]
-            [ text "TODO: search criteria" ]
+            [ text "TODO: conversation criteria" ]
 
         --  results list
         , row NoStyle
             [ height fill, width fill ]
             [ column NoStyle
                 [ yScrollbar, width fill ]
-                (List.map (viewConversationItem myId) convs )
+                (List.map (viewConversationItem myId) <| Dict.toList convMetas)
             ]
         ]
 
 
-viewConversationItem myId conversation =
+viewConversationItem myId ( convId, convMeta ) =
     row WhiteBg
         [ height (px 80)
         , width fill
         , spacing 10
         , verticalCenter
         , padding 15
-        , onClickPreventDefault (ViewConversationRequested conversation.id)
+        , onClickPreventDefault (ViewConversationRequested convId)
         ]
         [ image Avatar
             [ height (px 45) ]
             { src = "images/default-profile-pic.png"
             , caption = "Yo"
             }
-        , conversation.members
-            |> List.filter (\member -> member.id /= myId)
-            |> List.map .username
+        , convMeta.members
+            |> Dict.filter (\id member -> id /= myId)
+            |> Dict.toList
+            |> List.map (\( id, member ) -> member.username)
             |> String.join ", "
             |> text
         ]
 
 
-viewSearchPanel users =
-    column NoStyle
-        [ height fill
-        , width fill
-        ]
-        -- search bar
-        [ row YellowBar
-            [ height (px 100)
-            , center
+viewSearchPanel userDict =
+    let
+        _ =
+            Debug.log "utl" (Dict.toList userDict)
+    in
+        column NoStyle
+            [ height fill
+            , width fill
+            ]
+            -- search bar
+            [ row YellowBar
+                [ height (px 100)
+                , center
+                , verticalCenter
+                ]
+                [ text "TODO: search criteria" ]
+
+            --  results list
+            , row NoStyle
+                [ height fill, width fill ]
+                [ column NoStyle
+                    [ yScrollbar, width fill ]
+                    (List.map viewSearchResultItem (Dict.toList userDict))
+                ]
+            ]
+
+
+viewSearchResultItem ( id, user ) =
+    let
+        _ =
+            Debug.log "id" id
+
+        _ =
+            Debug.log "user" user
+    in
+        row WhiteBg
+            [ height (px 80)
+            , width fill
+            , spacing 10
             , verticalCenter
+            , padding 15
+            , onClickPreventDefault (CreateConversationRequested id)
             ]
-            [ text "TODO: search criteria" ]
-
-        --  results list
-        , row NoStyle
-            [ height fill, width fill ]
-            [ column NoStyle
-                [ yScrollbar, width fill ]
-                (List.map viewSearchResultItem users)
+            [ image Avatar
+                [ height (px 45) ]
+                { src = "images/default-profile-pic.png"
+                , caption = "Yo"
+                }
+            , text user.username
             ]
-        ]
-
-
-viewSearchResultItem user =
-    row WhiteBg
-        [ height (px 80)
-        , width fill
-        , spacing 10
-        , verticalCenter
-        , padding 15
-        , onClickPreventDefault (CreateConversationRequested user.id)
-        ]
-        [ image Avatar
-            [ height (px 45) ]
-            { src = "images/default-profile-pic.png"
-            , caption = "Yo"
-            }
-        , text user.username
-        ]
 
 
 viewTab : TabBarTab -> Element MyStyles variation Msg
@@ -336,11 +374,25 @@ viewSidenav model =
 viewConversationPanel model =
     let
         rightValue =
-            case model.messages of
+            case model.activeConversation of
                 Nothing ->
                     "100%"
-                Just messages ->
+
+                Just convId ->
                     "0"
+
+        messages =
+            case model.activeConversation of
+                Nothing ->
+                    []
+
+                Just convId ->
+                    case Dict.get convId model.conversationMessages of
+                        Nothing ->
+                            []
+
+                        Just messages ->
+                            messages
     in
         screen <|
             column Modal
@@ -360,17 +412,30 @@ viewConversationPanel model =
                     , el NoStyle
                         [ class "btn-floating waves-effect btn-flat red"
                         , width (px 40)
-                        , onClickPreventDefault CancelConversationRequested 
+                        , onClickPreventDefault CancelConversationRequested
                         ]
                         (materialIcon "chevron_right" "white")
                     ]
                 , column FaintGrayBg
                     [ spacing 20, padding 30, height fill ]
-                    []
+                    (List.map (viewMessageLine model.me.myUserId) messages)
                 , viewTextInput model
-
                 ]
 
 
-viewTextInput { autoExpand, textInput } =
-    el WhiteBg [] <| html <| AutoExpand.view config autoExpand textInput
+viewMessageLine myUserId message =
+    row NoStyle [] [ text message.content ]
+
+
+viewTextInput { conversationExtras, activeConversation } =
+    case activeConversation of
+        Nothing ->
+            text "error"
+
+        Just convId ->
+            case Dict.get convId conversationExtras of
+                Nothing ->
+                    text "error"
+
+                Just { autoExpand, textInput } ->
+                    el WhiteBg [] <| html <| AutoExpand.view (config convId) autoExpand textInput

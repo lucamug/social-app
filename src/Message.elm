@@ -6,8 +6,9 @@ import Time exposing (Time)
 
 
 type alias Message =
-    { msgId: String
+    { id: String
     , userId : String
+    , bundleId: String
     , content : String
     , timestamp : Time
     , isNewDay: Bool
@@ -18,6 +19,7 @@ decoder =
     decode Message
         |> required "id" string
         |> required "userId" string
+        |> required "bundleId" string
         |> required "content" string
         |> required "timestamp" float
         |> required "isNewDay" bool

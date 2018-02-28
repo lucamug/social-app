@@ -6,7 +6,8 @@ import Styles exposing (MyStyles(NoStyle), stylesheet)
 import Element exposing (..)
 import Element.Attributes exposing (..)
 import Ports
-import User
+import User exposing (User)
+import MyInfo exposing (MyInfo)
 import Json.Decode as De
 import Html
 import Window
@@ -41,9 +42,8 @@ type Msg
     | WindowResized Window.Size
     | LogErr String
     | LocationChanged Location
-    | LoginSuccessful De.Value 
+    | LoginSuccessful De.Value
     | LogoutSuccessful ()
-
     | LoggedOutMsg LoggedOut.Msg
     | LoggedInMsg LoggedIn.Msg
 
@@ -104,8 +104,15 @@ update msg model =
         LogoutSuccessful () ->
             { model | auth = LoggedOut LoggedOut.initialModel } ! []
 
-        LoginSuccessful user ->
-            { model | auth = LoggedIn (LoggedIn.initialModel (Result.withDefault {id="" , photoUrl=Nothing, username=""} <| De.decodeValue User.decoder user))}
+        LoginSuccessful userValues ->
+            { model
+                | auth =
+                    LoggedIn
+                        (LoggedIn.initialModel
+                            (Result.withDefault (MyInfo "" (User "" Nothing)) <| MyInfo.decoder userValues
+                            )
+                        )
+            }
                 ! [ Route.fetchRouteData model.route
                   , Ports.initSidenav ()
                   ]
@@ -146,7 +153,7 @@ subscriptions model =
         [ Window.resizes WindowResized
         , Ports.usersReceived (LoggedInMsg << LoggedIn.UsersReceived)
         , Ports.convsMetaReceived (LoggedInMsg << LoggedIn.ConvsMetaReceived)
-        , Ports.messagesReceived (LoggedInMsg << LoggedIn.ConvReceived)
+        , Ports.messagesReceived (LoggedInMsg << LoggedIn.MessagesReceived)
         , Ports.loggedIn LoginSuccessful
         , Ports.loggedOut LogoutSuccessful
         ]

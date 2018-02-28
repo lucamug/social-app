@@ -1,5 +1,13 @@
 import './main.css';
-import * as _ from 'lodash'
+import map from 'lodash/fp/map'
+import filter from 'lodash/fp/filter'
+import reverse from 'lodash/fp/reverse'
+import last from 'lodash/fp/last'
+import flow from 'lodash/fp/flow'
+import flatMap from 'lodash/fp/flatMap'
+import assign from 'lodash/fp/assign'
+import merge from 'lodash/fp/merge'
+import keyBy from 'lodash/fp/keyBy'
 import idbKeyval from 'idb-keyval'
 import moment from 'moment'
 
@@ -7,12 +15,13 @@ import { db, auth, msging, storage } from './firebase.js'
 import { Main } from './Main.elm';
 import registerServiceWorker from './registerServiceWorker';
 
-console.log('idb', idbKeyval)
+// console.log('idb', idbKeyval)
 
 var app = Main.fullscreen({ width: window.innerWidth, height: window.innerHeight });
 registerServiceWorker();
 
 let myUserId = null
+let myUserInfo = null
 let unsubscribeFromConv = null
 let unsubscribeFromConvsMeta = null
 
@@ -39,66 +48,80 @@ app.ports.newUser.subscribe(async ({ username, email, password }) => {
 
 app.ports.getAllOtherUsers.subscribe(async () => {
   const userDocs = (await db.collection('users').get()).docs
-  app.ports.usersReceived.send(userDocs
-    .filter(doc => doc.id != myUserId)
-    .map(
-      doc => ({
-        id: doc.id,
-        username: doc.data().username,
-        photoUrlCouple: doc.data().photoUrlCouple
-      })
-    ))
+  console.log('userDocs', userDocs)
+  let userDict =
+    flow(
+      filter(doc => doc.id != myUserId),
+      map(doc => (assign({ id: doc.id }, doc.data()))),
+      keyBy(doc => doc.id)
+    )
+      (userDocs)
+  console.log('ud', userDict)
+
+  app.ports.usersReceived.send(userDict)
 })
 
-app.ports.listenToConvMetas.subscribe(() => {
+
+
+
+app.ports.listenToConvMetas.subscribe(async () => {
   unsubscribeFromConvsMeta = db.collection('conversations').where(`members.${myUserId}.display`, '==', true).onSnapshot(snap => {
-    const docs = snap.docs.map(doc => {
-      doc = _.assign(doc.data(), { id: doc.id })
-      doc.conversationOwner = Object.keys(doc.conversationOwner)[0]
-      doc.members = _.map(doc.members, (member, key) => _.assign(member, { id: key }))
-      return doc
+    let docs = snap.docs.map(doc => {
+      const data = doc.data()
+      data.conversationOwner = Object.keys(data.conversationOwner)[0]
+      data.id = doc.id
+      return data
     })
+    docs = keyBy(doc => doc.id)(docs)
+    console.log('doc', docs)
     app.ports.convsMetaReceived.send(docs)
 
   })
 })
 
+
+
+
+
 app.ports.cancelConversation.subscribe(() => {
   unsubscribeFromConv()
   unsubscribeFromConv = null
-  app.ports.messagesReceived.send(null)
 })
 
-app.ports.listenToConversation.subscribe(convId => {
+
+
+
+app.ports.listenToMessages.subscribe(convId => {
 
   let numBundles = 2
   let latestBundleId = null
   // subscribe to firebase convSnaps
   function subscribeNumBundles(numBundles) {
     return db.collection(`conversations/${convId}/messageBundles`).orderBy('timestamp', 'desc').limit(numBundles).onSnapshot(snap => {
-      const bundles = _.reverse(snap.docs)
+      const bundles = snap.docs
 
       // if a new bundle was started, increment num bundles we're subscribe to
-      if (latestBundleId && latestBundleId != _.last(bundles).id) {
+      if (latestBundleId && latestBundleId != bundles[0].id) {
         numBundles += 1
         unsubscribeFromConv()
         unsubscribeFromConv = subscribeNumBundles(numBundles)
       } else {
-        const rawMsgs = _.flatMap(bundles, bundleDoc => _.map(bundleDoc.data().messages, (msg, id) => _.assign({ id }, msg)))
+        let messTup = map(bundleDoc => [bundleDoc.id, bundleDoc.data().messages])(bundles)
+        let rawMsgs = flatMap(([bundleId, messages]) => map.convert({ 'cap': false })((message, id) => assign({ bundleId, id }, message))(messages))(messTup)
           .sort((a, b) => {
             if (a.timestamp == null) { return 1 }
             if (b.timestamp == null) { return -1 }
             return a.timestamp - b.timestamp
           })
 
+
         // update last message seen
         // const prevLastSeen = this.members[this.myId].lastMessageSeen
         // const lastMsg = rawMsgs.length ? _.last(rawMsgs).id : null
         // if(lastMsg && prevLastSeen != lastMsg) this.convRef.update({[`members.${this.myId}.lastMessageSeen`]: lastMsg})
 
-        // LOOP: process messages add: 1. did I send, 2. who seen it and  3. if in a new day and sender compared to prev message
+        // LOOP: process messages add: 1. isNewSender, 2. isNewDay 
         const messages = rawMsgs.map((msg, index, msgs) => {
-          msg.timestamp = msg.timestamp.getTime()
 
           const prevMsg = msgs[index - 1]
           if (!prevMsg) {
@@ -113,10 +136,9 @@ app.ports.listenToConversation.subscribe(convId => {
           }
           return msg
         })
-        console.log('messages', messages)
-        app.ports.messagesReceived.send(messages)
+        app.ports.messagesReceived.send({ convId, messages })
       }
-      latestBundleId = _.last(bundles).id
+      latestBundleId = bundles[0].id
     })
   }
 
@@ -124,13 +146,23 @@ app.ports.listenToConversation.subscribe(convId => {
 
 })
 
+
+
+
 app.ports.login.subscribe(({ email, password }) => {
   auth.signInAndRetrieveDataWithEmailAndPassword(email, password)
 })
 
+
+
+
+
 app.ports.logout.subscribe(() => {
   auth.signOut()
 })
+
+
+
 
 app.ports.createConversation.subscribe(async otherUserId => {
   // store conversation details record
@@ -168,13 +200,17 @@ app.ports.createConversation.subscribe(async otherUserId => {
   db.doc(`userNotifications/${otherUserId}`).update({ [`conversations.${convDocRef.id}`]: true, })
 })
 
+
+
+
 auth.onAuthStateChanged(
   async user => {
     if (user) {
       // query database for my info.  Note:  __name__ is the key of the field in firestore
       myUserId = user.uid
-      const me = _.assign({ id: user.uid }, (await db.collection('users').where('__name__', '==', user.uid).get()).docs[0].data())
-      app.ports.loggedIn.send(me)
+      myUserInfo = (await db.collection('users').where('__name__', '==', myUserId).get()).docs[0].data()
+      app.ports.loggedIn.send({ myUserId, myUserInfo })
+
     } else {
       app.ports.loggedOut.send(null)
     }

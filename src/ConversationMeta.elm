@@ -1,16 +1,16 @@
-module Conversation exposing (..)
+module ConversationMeta exposing (..)
 
 import Message exposing (Message)
 import User exposing (User)
-import Json.Decode exposing (Decoder, string, nullable, list)
+import Json.Decode exposing (Decoder, string, nullable, dict)
 import Json.Decode.Pipeline exposing (decode, hardcoded, required)
 import Message exposing (..)
+import Dict exposing (Dict)
 
 
-type alias Conversation =
-    { id : String
-    , ownerId : String
-    , members : List User
+type alias ConversationMeta =
+    { ownerId : String
+    , members : Dict String User
     , lastMessage : Maybe Message
     }
 
@@ -18,25 +18,23 @@ type alias Conversation =
 -----------Serialization---------------------
 
 
-decoder : Decoder Conversation
+decoder : Decoder ConversationMeta
 decoder =
-    decode Conversation
-        |> required "id" string
+    decode ConversationMeta
         |> required "conversationOwner" string
-        |> required "members" (list User.decoder)
+        |> required "members" (dict User.decoder)
         |> required "lastMessage" (nullable Message.decoder)
-
 
 
 -- viewConversationList : Element MyStyles variation Msg
 -- viewConversationList =
 --     let
 --         conversations =
---             [ Conversation "bb84r6" "xrere" [ "dude" ] (Message "serrerkj" "WassupDude" 4438834) ]
+--             [ ConversationMeta "bb84r6" "xrere" [ "dude" ] (Message "serrerkj" "WassupDude" 4438834) ]
 --     in
 --     column NoStyle [ height fill, scrollbars ] (List.map viewConversationRow conversations)
 
--- viewConversationRow : Conversation -> Element MyStyles variation Msg
+-- viewConversationRow : ConversationMeta -> Element MyStyles variation Msg
 -- viewConversationRow conversation =
 --     row NoStyle
 --         [ height (px 80), width fill, padding 5, spacing 5, onClickPreventDefault (OpenConversation conversation.id) ]
