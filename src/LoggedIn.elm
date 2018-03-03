@@ -1,13 +1,14 @@
 module LoggedIn exposing (..)
 
 import AutoExpand
-import Element exposing (Element, toHtml, image, button, column, el, empty, h1, html, row, screen, text, viewport)
-import Element.Attributes exposing (..)
+import Element exposing (..)
 import Dict exposing (Dict)
 import List.Extra exposing (elemIndex)
 import Misc exposing (materialIcon, onClickPreventDefault)
-import Styles exposing (MyStyles(..), stylesheet)
 import Json.Decode as De exposing (decodeValue, string)
+import Html.Attributes exposing (style, class, contenteditable)
+import Element.Background as Bg
+import Color exposing (rgb)
 import Ports
 import MyInfo exposing (MyInfo)
 import User exposing (User)
@@ -23,7 +24,8 @@ config conversationId =
         , minRows = 1
         , maxRows = 10
         }
-        |> AutoExpand.withStyles [ ( "height", "auto" ), ( "border", "none" ), ( "outline", "none" ), ( "box-shadow", "none" ) ]
+        -- |> AutoExpand.withStyles [ ( "border", "none" ), ( "outline", "none" ), ( "box-shadow", "none" ) ]
+        |> AutoExpand.withStyles [ ( "border", "none" ), ( "outline", "none" ), ( "box-shadow", "none" ) ]
         |> AutoExpand.withPlaceholder "Type a message"
 
 
@@ -36,9 +38,6 @@ type alias Model =
     , showMenu : Bool
     , activeConversation : Maybe String
     , selectedTab : TabBarTab
-
-    -- , autoExpand : AutoExpand.State
-    -- , textInput : String
     }
 
 
@@ -52,9 +51,6 @@ initialModel myInfo =
     , showMenu = False
     , activeConversation = Nothing
     , selectedTab = Conversations
-
-    -- , autoExpand = AutoExpand.initState config
-    -- , textInput = ""
     }
 
 
@@ -139,40 +135,36 @@ update msg model =
             { model | conversationExtras = Dict.insert convId { autoExpand = state, textInput = textValue } model.conversationExtras } ! []
 
 
-viewLoggedIn : Model -> Element MyStyles variation Msg
 viewLoggedIn model =
-    column Main
-        [ height fill, minHeight (percent 100), clip ]
+    column
+        [ clip
+        , inFront (viewSidenav model)
+        , inFront (viewConversationPanel model)
+        ]
         [ viewContent model
-        , row NavBar
+        , row
             []
             [ viewTab model.selectedTab
-            , row NoStyle
-                [ center
-                , verticalCenter
-                , width fill
-                , onClickPreventDefault OpenSidenavRequested
-                ]
-                [ materialIcon "menu" "dark" ]
+            , row
+                [ htmlAttribute (onClickPreventDefault OpenSidenavRequested) ]
+                [ el [ centerX ] <| materialIcon "menu" "dark" ]
             ]
-        , viewSidenav model
-        , viewConversationPanel model
         ]
 
 
-viewContent : Model -> Element MyStyles variation Msg
+viewContent : Model -> Element Msg
 viewContent model =
-    el NoStyle
+    el
         [ height fill, width fill ]
         (case model.selectedTab of
             Conversations ->
                 viewConversationsPanel model.me.myUserId model.conversationMetas
 
             Events ->
-                el NoStyle [ verticalCenter, center ] (text "Events")
+                column [] [ text "Events" ]
 
             Wall ->
-                el NoStyle [ verticalCenter, center ] (text "Wall")
+                column [] [ text "Wall" ]
 
             Search ->
                 viewSearchPanel model.users
@@ -180,41 +172,32 @@ viewContent model =
 
 
 viewConversationsPanel myId convMetas =
-    column NoStyle
-        [ height fill
-        , width fill
-        ]
-        -- search bar
-        [ row GreenBar
+    column
+        []
+        [ row
             [ height (px 100)
-            , center
-            , verticalCenter
+            , Bg.color Color.blue
             ]
-            [ text "TODO: conversation criteria" ]
+            [ el [ centerX ] <| text "TODO: conversation criteria" ]
 
         --  results list
-        , row NoStyle
-            [ height fill, width fill ]
-            [ column NoStyle
-                [ yScrollbar, width fill ]
-                (List.map (viewConversationItem myId) <| Dict.toList convMetas)
-            ]
+        , column
+            [ scrollbarY ]
+            (List.map (viewConversationItem myId) <| Dict.toList convMetas)
         ]
 
 
 viewConversationItem myId ( convId, convMeta ) =
-    row WhiteBg
+    row
         [ height (px 80)
-        , width fill
         , spacing 10
-        , verticalCenter
         , padding 15
-        , onClickPreventDefault (ViewConversationRequested convId)
+        , htmlAttribute <| onClickPreventDefault (ViewConversationRequested convId)
         ]
-        [ image Avatar
+        [ image
             [ height (px 45) ]
             { src = "images/default-profile-pic.png"
-            , caption = "Yo"
+            , description = "Yo"
             }
         , convMeta.members
             |> Dict.filter (\id member -> id /= myId)
@@ -230,25 +213,19 @@ viewSearchPanel userDict =
         _ =
             Debug.log "utl" (Dict.toList userDict)
     in
-        column NoStyle
-            [ height fill
-            , width fill
-            ]
+        column
+            []
             -- search bar
-            [ row YellowBar
+            [ row
                 [ height (px 100)
-                , center
-                , verticalCenter
+                , centerX
                 ]
                 [ text "TODO: search criteria" ]
 
             --  results list
-            , row NoStyle
-                [ height fill, width fill ]
-                [ column NoStyle
-                    [ yScrollbar, width fill ]
-                    (List.map viewSearchResultItem (Dict.toList userDict))
-                ]
+            , column
+                [ scrollbarY ]
+                (List.map viewSearchResultItem (Dict.toList userDict))
             ]
 
 
@@ -260,24 +237,22 @@ viewSearchResultItem ( id, user ) =
         _ =
             Debug.log "user" user
     in
-        row WhiteBg
+        row
             [ height (px 80)
-            , width fill
             , spacing 10
-            , verticalCenter
             , padding 15
-            , onClickPreventDefault (CreateConversationRequested id)
+            , htmlAttribute <| onClickPreventDefault (CreateConversationRequested id)
             ]
-            [ image Avatar
+            [ image
                 [ height (px 45) ]
                 { src = "images/default-profile-pic.png"
-                , caption = "Yo"
+                , description = "Yo"
                 }
             , text user.username
             ]
 
 
-viewTab : TabBarTab -> Element MyStyles variation Msg
+viewTab : TabBarTab -> Element Msg
 viewTab selectedTab =
     let
         listTabs =
@@ -292,42 +267,36 @@ viewTab selectedTab =
                 |> elemIndex selectedTab
     in
         Element.map TabRequested
-            (column NoStyle
-                [ width (fillPortion 4) ]
-                [ row NoStyle
-                    [ width fill
-                    , height (px 50)
-                    ]
+            (column
+                [ width (fillPortion 4)
+                ]
+                [ row
+                    [ height (px 50) ]
                     (List.map viewTabButton listTabs)
                 , viewTabUnderline (Maybe.withDefault 0 indexRoute) (List.length listTabs)
                 ]
             )
 
 
-viewTabUnderline : Int -> Int -> Element MyStyles variation msg
-viewTabUnderline index length =
+viewTabUnderline : Int -> Int -> Element msg
+viewTabUnderline index numTabs =
     let
         barWidth =
-            100 / toFloat length
+            100 / toFloat numTabs
     in
-        row Underline
-            [ width fill
-            , height (px 2)
-            ]
-            [ el Pusher [ width (percent (toFloat index * barWidth)) ] empty
-            , el YellowBar [ width (percent barWidth) ] empty
+        row
+            [ height (px 2) ]
+            [ el [ width (fillPortion index) ] empty
+            , el [ height (px 2), width fill, Bg.color Color.red ] empty
+            , el [ width <| fillPortion <| numTabs - index - 1 ] empty
             ]
 
 
-viewTabButton : ( String, TabBarTab ) -> Element MyStyles variation TabBarTab
+viewTabButton : ( String, TabBarTab ) -> Element TabBarTab
 viewTabButton ( iconName, tab ) =
-    row NoStyle
-        [ width (fillPortion 1)
-        , onClickPreventDefault tab
-        , center
-        , verticalCenter
-        ]
-        [ materialIcon iconName "black" ]
+    row
+        [ htmlAttribute <| onClickPreventDefault tab ]
+        [ el [ centerX ] <| materialIcon iconName "black" ]
 
 
 viewSidenav model =
@@ -338,37 +307,37 @@ viewSidenav model =
             else
                 "100%"
     in
-        screen <|
-            column Modal
-                [ inlineStyle
-                    [ ( "left", rightValue ) ]
-                , width fill
-                , height fill
+        column
+            [ htmlAttribute
+                (style
+                    [ ( "transition", "left 130ms ease-in" )
+                    , ( "left", rightValue )
+                    ]
+                )
+            , Bg.color <| rgb 255 255 255
+            ]
+            [ row
+                [ height (px 60)
+                , padding 10
+                , alignLeft
                 ]
-                [ row YellowBar
-                    [ width fill
-                    , height (px 60)
-                    , padding 10
-                    , alignLeft
-                    , verticalCenter
+                [ el
+                    [ htmlAttribute <| class "btn-floating waves-effect btn-flat red"
+                    , width (px 40)
+                    , htmlAttribute <| onClickPreventDefault CloseSidenavRequested
                     ]
-                    [ el NoStyle
-                        [ class "btn-floating waves-effect btn-flat red"
-                        , width (px 40)
-                        , onClickPreventDefault CloseSidenavRequested
-                        ]
-                        (materialIcon "chevron_right" "white")
-                    , row NoStyle [ center, width fill ] [ text "SideNav" ]
-                    ]
-                , column WhiteBg
-                    [ verticalCenter, spacing 20, padding 30, height fill ]
-                    [ row NoStyle
-                        [ onClickPreventDefault LogOutRequested ]
-                        [ materialIcon "settings" "green"
-                        , text " Logout"
-                        ]
+                    (materialIcon "chevron_right" "black")
+                , row [ centerX ] [ text "SideNav" ]
+                ]
+            , column
+                [ centerY, spacing 20, padding 30 ]
+                [ row
+                    [ htmlAttribute <| onClickPreventDefault LogOutRequested ]
+                    [ materialIcon "settings" "green"
+                    , text " Logout"
                     ]
                 ]
+            ]
 
 
 viewConversationPanel model =
@@ -394,37 +363,38 @@ viewConversationPanel model =
                         Just messages ->
                             messages
     in
-        screen <|
-            column Modal
-                [ inlineStyle
-                    [ ( "left", rightValue ) ]
-                , width fill
-                , height fill
-                ]
-                [ row YellowBar
-                    [ width fill
-                    , height (px 60)
-                    , padding 10
-                    , alignLeft
-                    , verticalCenter
+        column
+            [ htmlAttribute <|
+                style
+                    [ ( "transition" , "left 130ms ease-in")
+                    , ( "left", rightValue )
                     ]
-                    [ row NoStyle [ center, width fill ] [ text "Conversation" ]
-                    , el NoStyle
-                        [ class "btn-floating waves-effect btn-flat red"
-                        , width (px 40)
-                        , onClickPreventDefault CancelConversationRequested
-                        ]
-                        (materialIcon "chevron_right" "white")
-                    ]
-                , column FaintGrayBg
-                    [ spacing 20, padding 30, height fill ]
-                    (List.map (viewMessageLine model.me.myUserId) messages)
-                , viewTextInput model
+            , Bg.color Color.white
+            ]
+            [ row
+                [ height (px 60)
+                , padding 10
+                , alignLeft
                 ]
+                [ row [ centerX ] [ text "Conversation" ]
+                , el
+                    [ htmlAttribute <| class "btn-floating waves-effect btn-flat red"
+                    , width (px 40)
+                    , htmlAttribute <| onClickPreventDefault CancelConversationRequested
+                    ]
+                    (materialIcon "chevron_right" "black")
+                ]
+            , column
+                [ spacing 20, padding 30 ]
+                (List.map (viewMessageLine model.me.myUserId) messages)
+
+            -- , viewTextInput model
+            , row [] [ el [ htmlAttribute <| contenteditable True ] (text "") ]
+            ]
 
 
 viewMessageLine myUserId message =
-    row NoStyle [] [ text message.content ]
+    row [] [ text message.content ]
 
 
 viewTextInput { conversationExtras, activeConversation } =
@@ -438,4 +408,4 @@ viewTextInput { conversationExtras, activeConversation } =
                     text "error"
 
                 Just { autoExpand, textInput } ->
-                    el WhiteBg [] <| html <| AutoExpand.view (config convId) autoExpand textInput
+                    el [] <| html <| AutoExpand.view (config convId) autoExpand textInput

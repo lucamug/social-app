@@ -2,9 +2,7 @@ module Main exposing (view)
 
 import LoggedOut exposing (viewLoggedOut)
 import LoggedIn
-import Styles exposing (MyStyles(NoStyle), stylesheet)
 import Element exposing (..)
-import Element.Attributes exposing (..)
 import Ports
 import User exposing (User)
 import MyInfo exposing (MyInfo)
@@ -124,7 +122,7 @@ update msg model =
 
 view : Model -> Html.Html Msg
 view model =
-    viewport stylesheet <|
+    layout [width fill, height fill] <|
         let
             mainView =
                 case model.auth of
@@ -137,7 +135,7 @@ view model =
                     AwaitingAuth ->
                         text "awaiting"
         in
-            column NoStyle
+            column 
                 [ height fill ]
                 [ mainView
                 ]

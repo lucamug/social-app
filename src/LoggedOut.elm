@@ -1,12 +1,15 @@
 module LoggedOut exposing (..)
 
-import Element exposing (button, column, el, empty, html, modal, row, screen, text, spacer)
-import Element.Attributes exposing (..)
-import Element.Input exposing (Text, currentPassword, email, hiddenLabel, placeholder)
+import Element exposing (..)
+import Element.Input exposing (currentPassword, email, button, placeholder, labelLeft, username)
+import Element.Background as Bg
+import Element.Border as Border
+import Element.Font as Font
+import Color exposing (rgb, rgba)
 import Html
+import Html.Attributes exposing (class, style)
 import Ports
 import Misc exposing (materialIcon, onClickPreventDefault)
-import Styles exposing (MyStyles(..))
 
 
 ------ MODEL -------------------
@@ -78,18 +81,17 @@ update msg model =
 ------------- VIEW --------------------------------
 
 
-viewLoggedOut : Model -> Element.Element MyStyles variation Msg
 viewLoggedOut model =
-    column NoStyle
-        [ class "green lighten-2"
-        , height fill
-        , width fill
-        , verticalCenter
-        , paddingXY 50 10
+    column
+        [ htmlAttribute (class "green lighten-2")
+        , padding 50
+        , spacing 10
+        , Bg.color (rgb 102 187 106)
+        , inFront (viewCreateProfile model)
         ]
         -- Title
-        [ el NoStyle
-            [ center ]
+        [ el
+            [ centerX ]
             (html
                 (Html.h1 []
                     [ Html.text "2 Of Us" ]
@@ -97,151 +99,156 @@ viewLoggedOut model =
             )
 
         -- Email Input
-        , row NoStyle
-            [ verticalCenter, spacing 20, paddingBottom 20 ]
-            [ materialIcon "mail" "green"
-            , email NoStyle
-                [ paddingLeft 10 ]
-                (Text EmailEdited
-                    model.emailEntry
-                    (placeholder
-                        { text = "Email"
-                        , label = hiddenLabel ""
-                        }
-                    )
-                    []
-                )
+        , row
+            [ ]
+            [ email
+                [ alignLeft
+                , Bg.color (rgb 102 187 106)
+                ]
+                { onChange = Just EmailEdited
+                , text = model.emailEntry
+                , placeholder = Just (placeholder [] (text "Email"))
+                -- , label = labelLeft [ centerY ] (materialIcon "mail" "green")
+                , label = labelLeft [ centerY ] (materialIcon "mail" "green")
+                }
             ]
 
         -- Password Input
-        , row NoStyle
-            [ verticalCenter, spacing 20, paddingBottom 3 ]
-            [ materialIcon "lock" "green"
-            , currentPassword NoStyle
-                [ paddingLeft 10 ]
-                (Text PasswordEdited
-                    model.passwordEntry
-                    (placeholder
-                        { text = "Password"
-                        , label = hiddenLabel ""
-                        }
-                    )
-                    []
-                )
+        , row
+            []
+            [ currentPassword
+                [ alignLeft]
+                { onChange = Just PasswordEdited
+                , text = model.passwordEntry
+                , placeholder = Just (placeholder [] (text "Password"))
+                , label = labelLeft [ centerY ] (materialIcon "lock" "green")
+                , show = False
+                }
             ]
 
         -- Forgot password button
-        , row NoStyle
-            [ alignRight, paddingBottom 20 ]
-            [ button NoStyle
-                [ class "waves-effect waves-teal btn-flat" ]
-                (text "Forgot Password?")
+        , row
+            []
+            [ button
+                [ htmlAttribute <| class "waves-effect waves-teal btn-flat"
+                , alignRight
+                ]
+                { onPress = Nothing
+                , label = text "Forgot Password?"
+                }
             ]
 
         -- Login Button
-        , row NoStyle
-            []
-            [ button NoStyle
+        , row
+            [ paddingXY 0 30 ]
+            [ button
                 [ width fill
-                , onClickPreventDefault LoginRequested
-                , class "waves-effect waves-light btn red"
+                , htmlAttribute <| class "waves-effect waves-light btn red"
+                , Font.color <| rgb 0 0 0
+                , Border.rounded 8
                 ]
-                (text "Log In")
+                { onPress = Just LoginRequested
+                , label = text "Log In"
+                }
             ]
 
         -- Create Free Profile Button
-        , row NoStyle
-            [ center, padding 30 ]
-            [ button NoStyle
-                [ padding 10
-                , onClickPreventDefault ProfileFormRequested
-                , class "waves-effect waves-light btn"
+        , row
+            [ paddingXY 0 30 ]
+            [ button
+                [ width (px 250)
+                , centerX
+                , htmlAttribute <| class "waves-effect waves-light btn"
+                , Font.color <| rgb 255 255 255
+                , Border.rounded 8
                 ]
-                (text "Create free profile")
+                { onPress = Just ProfileFormRequested
+                , label = text "Create free profile"
+                }
             ]
-        , viewCreateProfile model
         ]
 
 
-viewCreateProfile : Model -> Element.Element MyStyles variation Msg
 viewCreateProfile model =
     let
         leftValue =
             if model.status == CreatingAccount then
                 "0"
             else
-                "-100%"
+                "100%"
     in
-        screen <|
-            column Modal
-                [ inlineStyle [ ( "left", leftValue ) ]
-                , width fill
-                , height fill
+        column
+            [ htmlAttribute
+                (style
+                    [ ( "transition", "left 130ms ease-in" )
+                    , ( "left", leftValue )
+                    ]
+                )
+            , Bg.color <| rgb 255 255 255
+            ]
+            [ row
+                [ height (px 60)
+                , padding 10
                 ]
-                [ row YellowBar
-                    [ width fill
-                    , height (px 60)
-                    , padding 10
-                    , alignLeft
-                    , verticalCenter
+                [ row 
+                    [ width (px 40)
+                    , Bg.color Color.red
+                    , Border.rounded 10
+                    , htmlAttribute (onClickPreventDefault ProfileCreationCanceled)
                     ]
-                    [ el NoStyle
-                        [ class "btn-floating waves-effect btn-flat red"
-                        , width (px 40)
-                        , onClickPreventDefault ProfileCreationCanceled
-                        ]
-                        (materialIcon "chevron_left" "white")
-                    , row NoStyle [ center, width fill ] [ text "Create Profile" ]
+                    [materialIcon "chevron_left" "white"]
+                , row [] [ el [centerX] <| text "Create Profile" ]
+                ]
+            , column
+                [ spacing 20, padding 30 ]
+                -- username Input
+                [ row [height (px 100)] [empty]
+                , row
+                    []
+                    [ username
+                        [ alignLeft, padding 10 ]
+                        { onChange = Just UsernameEdited
+                        , text = model.usernameEntry
+                        , placeholder = Just <| placeholder [] (text "Username")
+                        , label = labelLeft [centerY] (materialIcon "account_circle" "green")
+                        }
                     ]
-                , column WhiteBg
-                    [ verticalCenter, spacing 20, padding 30, height fill ]
-                    -- username Input
-                    [ row NoStyle
-                        [ verticalCenter, spacing 10 ]
-                        [ materialIcon "account_circle" "green"
-                        , email NoStyle
-                            [ paddingLeft 10 ]
-                            (Text UsernameEdited
-                                model.usernameEntry
-                                (placeholder { text = "Username" , label = hiddenLabel "" })
-                                []
-                            )
-                        ]
 
-                    --email input
-                    , row NoStyle
-                        [ verticalCenter, spacing 10 ]
-                        [ materialIcon "mail" "green"
-                        , email NoStyle
-                            [ paddingLeft 10 ]
-                            (Text EmailEdited
-                                model.emailEntry
-                                (placeholder { text = "Email" , label = hiddenLabel "" })
-                                []
-                            )
-                        ]
-                    , row NoStyle
-                        [ verticalCenter, spacing 10 ]
-                        [ materialIcon "lock" "green"
-                        , currentPassword NoStyle
-                            [ paddingLeft 10 ]
-                            (Text PasswordEdited
-                                model.passwordEntry
-                                (placeholder { text = "Password" , label = hiddenLabel "" })
-                                []
-                            )
-                        ]
-                    , spacer 1
+                --email input
+                , row
+                    []
+                    [ email
+                        [ alignLeft, padding 10 ]
+                        { onChange = Just EmailEdited
+                        , text = model.emailEntry
+                        , placeholder = Just <| placeholder [] (text "Email")
+                        , label = labelLeft [ centerY ] (materialIcon "mail" "green")
+                        }
+                    ]
 
-                    -- Login Button
-                    , row NoStyle
-                        []
-                        [ button NoStyle
-                            [ width fill
-                            , onClickPreventDefault SubmitProfileRequested
-                            , class "waves-effect waves-light btn red"
-                            ]
-                            (text "Create Profile")
+                -- password input
+                , row
+                    []
+                    [ currentPassword
+                        [ alignLeft, padding 10 ]
+                        { onChange = Just PasswordEdited
+                        , text = model.passwordEntry
+                        , placeholder = Just <| placeholder [] (text "Password")
+                        , label = labelLeft [ centerY ] (materialIcon "lock" "green")
+                        , show = False
+                        }
+                    ]
+
+                -- Login Button
+                , row
+                    [padding 30 ]
+                    [ button
+                        [ width fill
+                        , htmlAttribute <| class "waves-effect waves-light btn red"
                         ]
+                        { onPress = Just SubmitProfileRequested
+                        , label = text "Create Profile"
+                        }
                     ]
                 ]
+            ]
