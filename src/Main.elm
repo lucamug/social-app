@@ -2,6 +2,7 @@ module Main exposing (view)
 
 import LoggedOut exposing (viewLoggedOut)
 import LoggedIn
+import Msgs exposing (..)
 import Element exposing (..)
 import Ports
 import User exposing (User)
@@ -42,8 +43,8 @@ type Msg
     | LocationChanged Location
     | LoginSuccessful De.Value
     | LogoutSuccessful ()
-    | LoggedOutMsg LoggedOut.Msg
-    | LoggedInMsg LoggedIn.Msg
+    | LoggedOutMsg LoggedOutSubMsg
+    | LoggedInMsg LoggedInSubMsg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -149,9 +150,9 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Window.resizes WindowResized
-        , Ports.usersReceived (LoggedInMsg << LoggedIn.UsersReceived)
-        , Ports.convsMetaReceived (LoggedInMsg << LoggedIn.ConvsMetaReceived)
-        , Ports.messagesReceived (LoggedInMsg << LoggedIn.MessagesReceived)
+        , Ports.usersReceived (LoggedInMsg << UsersReceived)
+        , Ports.convsMetaReceived (LoggedInMsg << ConvsMetaReceived)
+        , Ports.messagesReceived (LoggedInMsg << MessagesReceived)
         , Ports.loggedIn LoginSuccessful
         , Ports.loggedOut LogoutSuccessful
         ]

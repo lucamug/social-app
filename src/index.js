@@ -83,7 +83,7 @@ app.ports.listenToConvMetas.subscribe(async () => {
 
 
 
-app.ports.cancelConversation.subscribe(() => {
+app.ports.stopListeningToMessages.subscribe(() => {
   unsubscribeFromConv()
   unsubscribeFromConv = null
 })

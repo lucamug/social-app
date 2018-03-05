@@ -7,6 +7,7 @@ import Element.Border as Border
 import Element.Font as Font
 import Color exposing (rgb, rgba)
 import Html
+import Msgs exposing (LoggedOutSubMsg(..))
 import Html.Attributes exposing (class, style)
 import Ports
 import Misc exposing (materialIcon, onClickPreventDefault)
@@ -42,17 +43,9 @@ type LoggedOutStatus
 ----- Update --------------------
 
 
-type Msg
-    = SubmitProfileRequested
-    | EmailEdited String
-    | PasswordEdited String
-    | UsernameEdited String
-    | ProfileCreationCanceled
-    | ProfileFormRequested
-    | LoginRequested
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+update : LoggedOutSubMsg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
         ProfileCreationCanceled ->

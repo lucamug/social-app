@@ -10,7 +10,7 @@ port logout : () -> Cmd msg
 port createConversation : String -> Cmd msg  -- arg:  otherUserId
 port listenToConvMetas: () -> Cmd msg
 port listenToMessages: String -> Cmd msg
-port cancelConversation: () -> Cmd msg
+port stopListeningToMessages: () -> Cmd msg
 port getAllOtherUsers : () -> Cmd msg
 port initSidenav: () -> Cmd msg
 port openSidenav: () -> Cmd msg

@@ -1,6 +1,5 @@
 module LoggedIn exposing (..)
 
-import AutoExpand
 import Element exposing (..)
 import Dict exposing (Dict)
 import List.Extra exposing (elemIndex)
@@ -13,27 +12,16 @@ import Ports
 import MyInfo exposing (MyInfo)
 import User exposing (User)
 import Message exposing (Message)
+import Msgs exposing (LoggedInSubMsg(..), TabBarTab(..))
 import ConversationMeta exposing (ConversationMeta)
-
-
-config conversationId =
-    AutoExpand.config
-        { onInput = AutoExpandInput conversationId
-        , padding = 10
-        , lineHeight = 20
-        , minRows = 1
-        , maxRows = 10
-        }
-        -- |> AutoExpand.withStyles [ ( "border", "none" ), ( "outline", "none" ), ( "box-shadow", "none" ) ]
-        |> AutoExpand.withStyles [ ( "border", "none" ), ( "outline", "none" ), ( "box-shadow", "none" ) ]
-        |> AutoExpand.withPlaceholder "Type a message"
+import ConversationView exposing (viewConversationPanel)
 
 
 type alias Model =
     { users : Dict String User
     , conversationMetas : Dict String ConversationMeta
     , conversationMessages : Dict String (List Message)
-    , conversationExtras : Dict String { autoExpand : AutoExpand.State, textInput : String }
+    , conversationExtras : Dict String { rows : Int, textInput : String }
     , me : MyInfo
     , showMenu : Bool
     , activeConversation : Maybe String
@@ -52,27 +40,6 @@ initialModel myInfo =
     , activeConversation = Nothing
     , selectedTab = Conversations
     }
-
-
-type TabBarTab
-    = Conversations
-    | Events
-    | Wall
-    | Search
-
-
-type Msg
-    = OpenSidenavRequested
-    | CloseSidenavRequested
-    | ViewConversationRequested String
-    | CancelConversationRequested
-    | CreateConversationRequested String
-    | TabRequested TabBarTab
-    | LogOutRequested
-    | UsersReceived De.Value
-    | ConvsMetaReceived De.Value
-    | MessagesReceived De.Value
-    | AutoExpandInput String { textValue : String, state : AutoExpand.State }
 
 
 update msg model =
@@ -98,21 +65,8 @@ update msg model =
         ConvsMetaReceived convsValue ->
             { model | conversationMetas = Result.withDefault Dict.empty <| decodeValue (De.dict ConversationMeta.decoder) convsValue } ! []
 
-        ViewConversationRequested convId ->
-            let
-                conversationExtras =
-                    Dict.update convId
-                        (\v ->
-                            case v of
-                                Nothing ->
-                                    Just { autoExpand = AutoExpand.initState (config convId), textInput = "" }
-
-                                Just val ->
-                                    Just val
-                        )
-                        model.conversationExtras
-            in
-                { model | activeConversation = Just convId, conversationExtras = conversationExtras } ! [ Ports.listenToMessages convId ]
+        MessagesRequested convId ->
+            { model | activeConversation = Just convId } ! [ Ports.listenToMessages convId ]
 
         MessagesReceived messageList ->
             let
@@ -123,16 +77,24 @@ update msg model =
                                 (De.field "convId" string)
                                 (De.field "messages" (De.list Message.decoder))
                             )
+                        -- TODO: should throw error instead
                         |> Result.withDefault { convId = "", messages = [] }
             in
                 { model | conversationMessages = Dict.insert convId messages model.conversationMessages } ! []
 
-        CancelConversationRequested ->
-            { model | activeConversation = Nothing } ! [ Ports.cancelConversation () ]
+        MessagesCancelRequested ->
+            { model | activeConversation = Nothing } ! [ Ports.stopListeningToMessages () ]
 
-        AutoExpandInput convId { state, textValue } ->
-            -- { model | autoExpand = state, textInput = textValue } ! []
-            { model | conversationExtras = Dict.insert convId { autoExpand = state, textInput = textValue } model.conversationExtras } ! []
+        AutoExpandInput { rows, textValue } ->
+            { model
+                | conversationExtras =
+                    Dict.insert (Maybe.withDefault "" model.activeConversation)
+                        { rows = rows
+                        , textInput = textValue
+                        }
+                        model.conversationExtras
+            }
+                ! []
 
 
 viewLoggedIn model =
@@ -152,13 +114,13 @@ viewLoggedIn model =
         ]
 
 
-viewContent : Model -> Element Msg
+viewContent : Model -> Element LoggedInSubMsg
 viewContent model =
     el
         [ height fill, width fill ]
         (case model.selectedTab of
             Conversations ->
-                viewConversationsPanel model.me.myUserId model.conversationMetas
+                viewConversationListPanel model.me.myUserId model.conversationMetas
 
             Events ->
                 column [] [ text "Events" ]
@@ -171,7 +133,7 @@ viewContent model =
         )
 
 
-viewConversationsPanel myId convMetas =
+viewConversationListPanel myId convMetas =
     column
         []
         [ row
@@ -192,7 +154,7 @@ viewConversationItem myId ( convId, convMeta ) =
         [ height (px 80)
         , spacing 10
         , padding 15
-        , htmlAttribute <| onClickPreventDefault (ViewConversationRequested convId)
+        , htmlAttribute <| onClickPreventDefault (MessagesRequested convId)
         ]
         [ image
             [ height (px 45) ]
@@ -252,7 +214,7 @@ viewSearchResultItem ( id, user ) =
             ]
 
 
-viewTab : TabBarTab -> Element Msg
+viewTab : TabBarTab -> Element LoggedInSubMsg
 viewTab selectedTab =
     let
         listTabs =
@@ -266,16 +228,14 @@ viewTab selectedTab =
             List.map Tuple.second listTabs
                 |> elemIndex selectedTab
     in
-        Element.map TabRequested
-            (column
-                [ width (fillPortion 4)
-                ]
-                [ row
-                    [ height (px 50) ]
-                    (List.map viewTabButton listTabs)
-                , viewTabUnderline (Maybe.withDefault 0 indexRoute) (List.length listTabs)
-                ]
-            )
+        column
+            [ width (fillPortion 4)
+            ]
+            [ row
+                [ height (px 50) ]
+                (List.map viewTabButton listTabs)
+            , viewTabUnderline (Maybe.withDefault 0 indexRoute) (List.length listTabs)
+            ]
 
 
 viewTabUnderline : Int -> Int -> Element msg
@@ -292,10 +252,10 @@ viewTabUnderline index numTabs =
             ]
 
 
-viewTabButton : ( String, TabBarTab ) -> Element TabBarTab
+viewTabButton : ( String, TabBarTab ) -> Element LoggedInSubMsg
 viewTabButton ( iconName, tab ) =
     row
-        [ htmlAttribute <| onClickPreventDefault tab ]
+        [ htmlAttribute <| onClickPreventDefault (TabRequested tab) ]
         [ el [ centerX ] <| materialIcon iconName "black" ]
 
 
@@ -338,74 +298,3 @@ viewSidenav model =
                     ]
                 ]
             ]
-
-
-viewConversationPanel model =
-    let
-        rightValue =
-            case model.activeConversation of
-                Nothing ->
-                    "100%"
-
-                Just convId ->
-                    "0"
-
-        messages =
-            case model.activeConversation of
-                Nothing ->
-                    []
-
-                Just convId ->
-                    case Dict.get convId model.conversationMessages of
-                        Nothing ->
-                            []
-
-                        Just messages ->
-                            messages
-    in
-        column
-            [ htmlAttribute <|
-                style
-                    [ ( "transition" , "left 130ms ease-in")
-                    , ( "left", rightValue )
-                    ]
-            , Bg.color Color.white
-            ]
-            [ row
-                [ height (px 60)
-                , padding 10
-                , alignLeft
-                ]
-                [ row [ centerX ] [ text "Conversation" ]
-                , el
-                    [ htmlAttribute <| class "btn-floating waves-effect btn-flat red"
-                    , width (px 40)
-                    , htmlAttribute <| onClickPreventDefault CancelConversationRequested
-                    ]
-                    (materialIcon "chevron_right" "black")
-                ]
-            , column
-                [ spacing 20, padding 30 ]
-                (List.map (viewMessageLine model.me.myUserId) messages)
-
-            -- , viewTextInput model
-            , row [] [ el [ htmlAttribute <| contenteditable True ] (text "") ]
-            ]
-
-
-viewMessageLine myUserId message =
-    row [] [ text message.content ]
-
-
-viewTextInput { conversationExtras, activeConversation } =
-    case activeConversation of
-        Nothing ->
-            text "error"
-
-        Just convId ->
-            case Dict.get convId conversationExtras of
-                Nothing ->
-                    text "error"
-
-                Just { autoExpand, textInput } ->
-                    el [] <| html <| AutoExpand.view (config convId) autoExpand textInput
