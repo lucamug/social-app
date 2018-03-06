@@ -13,15 +13,13 @@ import MyInfo exposing (MyInfo)
 import User exposing (User)
 import Message exposing (Message)
 import Msgs exposing (LoggedInSubMsg(..), TabBarTab(..))
-import ConversationMeta exposing (ConversationMeta)
+import Conversation exposing (..)
 import ConversationView exposing (viewConversationPanel)
 
 
 type alias Model =
     { users : Dict String User
-    , conversationMetas : Dict String ConversationMeta
-    , conversationMessages : Dict String (List Message)
-    , conversationExtras : Dict String { rows : Int, textInput : String }
+    , conversations : Dict String Conversation
     , me : MyInfo
     , showMenu : Bool
     , activeConversation : Maybe String
@@ -32,9 +30,7 @@ type alias Model =
 initialModel : MyInfo -> Model
 initialModel myInfo =
     { users = Dict.empty
-    , conversationMetas = Dict.empty
-    , conversationMessages = Dict.empty
-    , conversationExtras = Dict.empty
+    , conversations = Dict.empty
     , me = myInfo
     , showMenu = False
     , activeConversation = Nothing
@@ -63,7 +59,30 @@ update msg model =
             { model | users = Result.withDefault Dict.empty <| decodeValue (De.dict User.decoder) usersValue } ! []
 
         ConvsMetaReceived convsValue ->
-            { model | conversationMetas = Result.withDefault Dict.empty <| decodeValue (De.dict ConversationMeta.decoder) convsValue } ! []
+            let
+                metaDict =
+                    Result.withDefault Dict.empty <| decodeValue (De.dict Conversation.convMetaDecoder) convsValue
+
+                metaOnly convId convMeta result =
+                    Dict.insert convId { meta = convMeta, messages = [], extras = { rows = 1, textInput = "" } } result
+
+                metaAndConv convId convMeta conv result =
+                    Dict.update convId (Maybe.map ((\convMeta conv -> { conv | meta = convMeta }) convMeta)) result
+
+                convOnly convId conv result =
+                    Dict.remove convId result
+            in
+                { model
+                    | conversations =
+                        Dict.merge
+                            metaOnly
+                            metaAndConv
+                            convOnly
+                            metaDict
+                            model.conversations
+                            Dict.empty
+                }
+                    ! []
 
         MessagesRequested convId ->
             { model | activeConversation = Just convId } ! [ Ports.listenToMessages convId ]
@@ -79,30 +98,66 @@ update msg model =
                             )
                         -- TODO: should throw error instead
                         |> Result.withDefault { convId = "", messages = [] }
+
+                updateMessages messages mayConv =
+                    Maybe.map ((\messages conv -> { conv | messages = messages }) messages) mayConv
             in
-                { model | conversationMessages = Dict.insert convId messages model.conversationMessages } ! []
+                { model | conversations = Dict.update convId (updateMessages messages) model.conversations } ! []
 
         MessagesCancelRequested ->
             { model | activeConversation = Nothing } ! [ Ports.stopListeningToMessages () ]
 
-        AutoExpandInput { rows, textValue } ->
-            { model
-                | conversationExtras =
-                    Dict.insert (Maybe.withDefault "" model.activeConversation)
-                        { rows = rows
-                        , textInput = textValue
-                        }
-                        model.conversationExtras
-            }
-                ! []
+        AutoExpandInput convId { rows, textValue } ->
+            let
+                updateExtras extras mayConv =
+                    case mayConv of
+                        Just conv ->
+                            Just { conv | extras = extras }
+
+                        Nothing ->
+                            Nothing
+            in
+                { model
+                    | conversations =
+                        Dict.update convId (updateExtras { rows = rows, textInput = textValue }) model.conversations
+                }
+                    ! []
+
+
+viewSlidablePanel panel activeConvId myUserId ( convId, conv ) =
+    let
+        rightValue =
+            case activeConvId of
+                Nothing ->
+                    "100%"
+
+                Just id ->
+                    if convId == id then
+                        "0"
+                    else
+                        "100%"
+    in
+        el
+            [ htmlAttribute <|
+                style
+                    [ ( "transition", "left 130ms ease-in" )
+                    , ( "left", rightValue )
+                    ]
+            , width fill
+            , height fill
+            ]
+            (panel ( convId, conv ) myUserId)
 
 
 viewLoggedIn model =
     column
-        [ clip
-        , inFront (viewSidenav model)
-        , inFront (viewConversationPanel model)
-        ]
+        ([ clip
+         , inFront (viewSidenav model)
+
+         -- , inFront (viewConversationPanel model)
+         ]
+            ++ (List.map (inFront << (viewSlidablePanel viewConversationPanel model.activeConversation model.me.myUserId)) (Dict.toList model.conversations))
+        )
         [ viewContent model
         , row
             []
@@ -120,7 +175,7 @@ viewContent model =
         [ height fill, width fill ]
         (case model.selectedTab of
             Conversations ->
-                viewConversationListPanel model.me.myUserId model.conversationMetas
+                viewConversationListPanel model.me.myUserId model.conversations
 
             Events ->
                 column [] [ text "Events" ]
@@ -133,7 +188,7 @@ viewContent model =
         )
 
 
-viewConversationListPanel myId convMetas =
+viewConversationListPanel myId convs =
     column
         []
         [ row
@@ -145,11 +200,11 @@ viewConversationListPanel myId convMetas =
         --  results list
         , column
             [ scrollbarY ]
-            (List.map (viewConversationItem myId) <| Dict.toList convMetas)
+            (List.map (viewConversationItem myId) <| Dict.toList convs)
         ]
 
 
-viewConversationItem myId ( convId, convMeta ) =
+viewConversationItem myId ( convId, conv ) =
     row
         [ height (px 80)
         , spacing 10
@@ -161,7 +216,7 @@ viewConversationItem myId ( convId, convMeta ) =
             { src = "images/default-profile-pic.png"
             , description = "Yo"
             }
-        , convMeta.members
+        , conv.meta.members
             |> Dict.filter (\id member -> id /= myId)
             |> Dict.toList
             |> List.map (\( id, member ) -> member.username)

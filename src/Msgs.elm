@@ -13,7 +13,7 @@ type LoggedInSubMsg
     | UsersReceived De.Value
     | ConvsMetaReceived De.Value
     | MessagesReceived De.Value
-    | AutoExpandInput { textValue : String, rows : Int }
+    | AutoExpandInput String { textValue : String, rows : Int }
 
 
 type LoggedOutSubMsg

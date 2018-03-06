@@ -11,60 +11,31 @@ import Html.Events exposing (on)
 import Element.Background as Bg
 import Color exposing (rgb)
 
-viewConversationPanel model =
-    let
-        rightValue =
-            case model.activeConversation of
-                Nothing ->
-                    "100%"
-
-                Just convId ->
-                    "0"
-            
-
-        messages =
-            case model.activeConversation of
-                Nothing ->
-                    []
-
-                Just convId ->
-                    case Dict.get convId model.conversationMessages of
-                        Nothing ->
-                            []
-
-                        Just messages ->
-                            messages
-    in
-        column
-            [ htmlAttribute <|
-                style
-                    [ ( "transition", "left 130ms ease-in" )
-                    , ( "left", rightValue )
-                    ]
-            , Bg.color Color.white
+viewConversationPanel (convId, conv) myUserId =
+    column
+        [ Bg.color Color.white ]
+        [ row
+            [ height (px 60)
+            , padding 10
+            , alignLeft
             ]
-            [ row
-                [ height (px 60)
-                , padding 10
-                , alignLeft
+            [ row [ centerX ] [ text "Conversation" ]
+            , el
+                [ htmlAttribute <| class "btn-floating waves-effect btn-flat red"
+                , width (px 40)
+                , htmlAttribute <| onClickPreventDefault MessagesCancelRequested
                 ]
-                [ row [ centerX ] [ text "Conversation" ]
-                , el
-                    [ htmlAttribute <| class "btn-floating waves-effect btn-flat red"
-                    , width (px 40)
-                    , htmlAttribute <| onClickPreventDefault MessagesCancelRequested
-                    ]
-                    (materialIcon "chevron_right" "black")
-                ]
-            , column
-                [ spacing 20, padding 30 ]
-                (List.map (viewMessageLine model.me.myUserId) messages)
-
-            -- , viewTextInput model
-            , row [] [viewMessageInput 4]
+                (materialIcon "chevron_right" "black")
             ]
+        , column
+            [ spacing 20, padding 30 ]
+            (List.map (viewMessageLine myUserId) conv.messages)
 
-viewMessageInput numRows =
+        -- , viewTextInput model
+        , row [] [viewMessageInput convId 4]
+        ]
+
+viewMessageInput convId numRows =
     html <|
         textarea
             [ style
@@ -75,13 +46,13 @@ viewMessageInput numRows =
                 ]
             , rows numRows
             , placeholder "Type a message"
-            , on "input" inputDecoder
+            , on "input" (inputDecoder convId)
             ]
             []
 
 
-inputDecoder =
-    map2 (\t r -> AutoExpandInput { textValue = t, rows = ceiling ((toFloat (r-52))/21)})
+inputDecoder convId =
+    map2 (\t r -> AutoExpandInput convId { textValue = t, rows = ceiling ((toFloat (r-52))/21)})
         (at [ "target", "value" ] string)
         (at [ "target", "scrollHeight" ] int)
         
