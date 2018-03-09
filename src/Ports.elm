@@ -8,6 +8,7 @@ port newUser : { username : String, email : String, password : String } -> Cmd m
 port login : { email : String, password : String } -> Cmd msg
 port logout : () -> Cmd msg
 port createConversation : String -> Cmd msg  -- arg:  otherUserId
+port sendMessage: {convId: String, text: String, image: String} -> Cmd msg
 port listenToConvMetas: () -> Cmd msg
 port listenToMessages: String -> Cmd msg
 port stopListeningToMessages: () -> Cmd msg

@@ -36,15 +36,6 @@ type Auth
     | AwaitingAuth
 
 
-type Msg
-    = NoOp
-    | WindowResized Window.Size
-    | LogErr String
-    | LocationChanged Location
-    | LoginSuccessful De.Value
-    | LogoutSuccessful ()
-    | LoggedOutMsg LoggedOutSubMsg
-    | LoggedInMsg LoggedInSubMsg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

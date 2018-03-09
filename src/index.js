@@ -24,6 +24,8 @@ let myUserId = null
 let myUserInfo = null
 let unsubscribeFromConv = null
 let unsubscribeFromConvsMeta = null
+let latestBundleIds = {}
+
 
 app.ports.newUser.subscribe(async ({ username, email, password }) => {
   try {
@@ -73,7 +75,7 @@ app.ports.listenToConvMetas.subscribe(async () => {
       return data
     })
     docs = keyBy(doc => doc.id)(docs)
-    console.log('doc', docs)
+    console.log("convDocs", docs)
     app.ports.convsMetaReceived.send(docs)
 
   })
@@ -94,12 +96,12 @@ app.ports.stopListeningToMessages.subscribe(() => {
 app.ports.listenToMessages.subscribe(convId => {
 
   let numBundles = 2
-  let latestBundleId = null
   // subscribe to firebase convSnaps
   function subscribeNumBundles(numBundles) {
     return db.collection(`conversations/${convId}/messageBundles`).orderBy('timestamp', 'desc').limit(numBundles).onSnapshot(snap => {
       const bundles = snap.docs
 
+      let latestBundleId = latestBundleIds[convId]
       // if a new bundle was started, increment num bundles we're subscribe to
       if (latestBundleId && latestBundleId != bundles[0].id) {
         numBundles += 1
@@ -138,7 +140,7 @@ app.ports.listenToMessages.subscribe(convId => {
         })
         app.ports.messagesReceived.send({ convId, messages })
       }
-      latestBundleId = bundles[0].id
+      latestBundleIds[convId] = bundles[0].id
     })
   }
 
@@ -155,13 +157,31 @@ app.ports.login.subscribe(({ email, password }) => {
 
 
 
-
-
 app.ports.logout.subscribe(() => {
   auth.signOut()
 })
 
 
+
+app.ports.sendMessage.subscribe(async ({ convId, text, image }) => {
+  const msgId = Math.floor(Math.random() * 10 ** 17)
+
+  const message = {
+    content: text,
+    userId: myUserId,
+    timestamp: moment(firebase.firestore.FieldValue.serverTimestamp()).unix()
+  }
+  console.log('message', moment(message.timestamp))
+
+  if (image) {
+    message.imageURL = (await storage.ref(`conversationPics/${latestBundleIds[convId]}/${msgId}.jpg`).put(image)).metadata.downloadURLs[0]
+  }
+
+  // push new message and update last conversation message
+  db.doc(`conversations/${convId}/messageBundles/${latestBundleIds[convId]}`).update({ [`messages.${msgId}`]: message })
+  db.doc(`conversations/${convId}`).update({ lastMessage: message })
+
+})
 
 
 app.ports.createConversation.subscribe(async otherUserId => {

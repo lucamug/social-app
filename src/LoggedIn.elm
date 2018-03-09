@@ -5,16 +5,19 @@ import Dict exposing (Dict)
 import List.Extra exposing (elemIndex)
 import Misc exposing (materialIcon, onClickPreventDefault)
 import Json.Decode as De exposing (decodeValue, string)
-import Html.Attributes exposing (style, class, contenteditable)
+import Html.Attributes exposing (style, class)
 import Element.Background as Bg
 import Color exposing (rgb)
 import Ports
 import MyInfo exposing (MyInfo)
 import User exposing (User)
 import Message exposing (Message)
-import Msgs exposing (LoggedInSubMsg(..), TabBarTab(..))
+import Msgs exposing (Msg(LoggedInMsg), LoggedInSubMsg(..), TabBarTab(..))
 import Conversation exposing (..)
 import ConversationView exposing (viewConversationPanel)
+import ConversationListView exposing (viewConversationListPanel)
+import Dom.Scroll as Scroll
+import Task
 
 
 type alias Model =
@@ -46,6 +49,16 @@ update msg model =
         CloseSidenavRequested ->
             { model | showMenu = False } ! []
 
+        SendMessageRequested convId extras image ->
+            let
+                newConv =
+                    Dict.update
+                        convId
+                        (Maybe.map (\conv -> { conv | extras = { rows = 1, textInput = "" } }))
+                        model.conversations
+            in
+                { model | conversations = newConv } ! [ Ports.sendMessage { convId = convId, text = extras.textInput, image = image } ]
+
         CreateConversationRequested userId ->
             model ! [ Ports.createConversation userId ]
 
@@ -67,10 +80,10 @@ update msg model =
                     Dict.insert convId { meta = convMeta, messages = [], extras = { rows = 1, textInput = "" } } result
 
                 metaAndConv convId convMeta conv result =
-                    Dict.update convId (Maybe.map ((\convMeta conv -> { conv | meta = convMeta }) convMeta)) result
+                    Dict.insert convId { conv | meta = convMeta } result
 
                 convOnly convId conv result =
-                    Dict.remove convId result
+                    result
             in
                 { model
                     | conversations =
@@ -102,7 +115,12 @@ update msg model =
                 updateMessages messages mayConv =
                     Maybe.map ((\messages conv -> { conv | messages = messages }) messages) mayConv
             in
-                { model | conversations = Dict.update convId (updateMessages messages) model.conversations } ! []
+                { model | conversations = Dict.update convId (updateMessages messages) model.conversations }
+                    ! 
+                    [Task.attempt (LoggedInMsg << MessagesScrolled) (Scroll.toBottom convId)]
+
+        MessagesScrolled result ->
+            model ! []
 
         MessagesCancelRequested ->
             { model | activeConversation = Nothing } ! [ Ports.stopListeningToMessages () ]
@@ -129,34 +147,42 @@ viewSlidablePanel panel activeConvId myUserId ( convId, conv ) =
         rightValue =
             case activeConvId of
                 Nothing ->
-                    "100%"
+                    "-100%"
 
                 Just id ->
                     if convId == id then
                         "0"
                     else
-                        "100%"
+                        "-100%"
     in
-        el
+        column
             [ htmlAttribute <|
                 style
                     [ ( "transition", "left 130ms ease-in" )
+
+                    -- , ("max-height", "100vh")
+                    -- , ("heigh", "100vh")
                     , ( "left", rightValue )
                     ]
-            , width fill
-            , height fill
             ]
-            (panel ( convId, conv ) myUserId)
+            [ panel ( convId, conv ) myUserId ]
 
 
 viewLoggedIn model =
     column
         ([ clip
          , inFront (viewSidenav model)
-
-         -- , inFront (viewConversationPanel model)
          ]
-            ++ (List.map (inFront << (viewSlidablePanel viewConversationPanel model.activeConversation model.me.myUserId)) (Dict.toList model.conversations))
+            ++ (List.map
+                    (inFront
+                        << (viewSlidablePanel
+                                viewConversationPanel
+                                model.activeConversation
+                                model.me.myUserId
+                           )
+                    )
+                    (Dict.toList model.conversations)
+               )
         )
         [ viewContent model
         , row
@@ -188,85 +214,37 @@ viewContent model =
         )
 
 
-viewConversationListPanel myId convs =
+viewSearchPanel userDict =
     column
         []
+        -- search bar
         [ row
             [ height (px 100)
-            , Bg.color Color.blue
+            , centerX
             ]
-            [ el [ centerX ] <| text "TODO: conversation criteria" ]
+            [ text "TODO: search criteria" ]
 
         --  results list
         , column
             [ scrollbarY ]
-            (List.map (viewConversationItem myId) <| Dict.toList convs)
+            (List.map viewSearchResultItem (Dict.toList userDict))
         ]
 
 
-viewConversationItem myId ( convId, conv ) =
+viewSearchResultItem ( id, user ) =
     row
         [ height (px 80)
         , spacing 10
         , padding 15
-        , htmlAttribute <| onClickPreventDefault (MessagesRequested convId)
+        , htmlAttribute <| onClickPreventDefault (CreateConversationRequested id)
         ]
         [ image
             [ height (px 45) ]
             { src = "images/default-profile-pic.png"
             , description = "Yo"
             }
-        , conv.meta.members
-            |> Dict.filter (\id member -> id /= myId)
-            |> Dict.toList
-            |> List.map (\( id, member ) -> member.username)
-            |> String.join ", "
-            |> text
+        , text user.username
         ]
-
-
-viewSearchPanel userDict =
-    let
-        _ =
-            Debug.log "utl" (Dict.toList userDict)
-    in
-        column
-            []
-            -- search bar
-            [ row
-                [ height (px 100)
-                , centerX
-                ]
-                [ text "TODO: search criteria" ]
-
-            --  results list
-            , column
-                [ scrollbarY ]
-                (List.map viewSearchResultItem (Dict.toList userDict))
-            ]
-
-
-viewSearchResultItem ( id, user ) =
-    let
-        _ =
-            Debug.log "id" id
-
-        _ =
-            Debug.log "user" user
-    in
-        row
-            [ height (px 80)
-            , spacing 10
-            , padding 15
-            , htmlAttribute <| onClickPreventDefault (CreateConversationRequested id)
-            ]
-            [ image
-                [ height (px 45) ]
-                { src = "images/default-profile-pic.png"
-                , description = "Yo"
-                }
-            , text user.username
-            ]
 
 
 viewTab : TabBarTab -> Element LoggedInSubMsg
