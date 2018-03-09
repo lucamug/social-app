@@ -1,3 +1,5 @@
+[http://clammy-bedroom.surge.sh/](http://clammy-bedroom.surge.sh/)
+
 This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app).
 
 Below you will find some information on how to perform basic tasks.  
@@ -432,7 +434,7 @@ In Elm code, you can use `%PUBLIC_URL%` for similar purposes:
 
 ```elm
 // Note: this is an escape hatch and should be used sparingly!
-// Normally we recommend using `import`  and `Html.programWithFlags` for getting 
+// Normally we recommend using `import`  and `Html.programWithFlags` for getting
 // asset URLs as described in “Adding Images and Fonts” above this section.
 img [ src "%PUBLIC_URL%/logo.svg" ] []
 ```
@@ -527,7 +529,7 @@ To forward the API ( REST ) calls to backend server, add a proxy to the `elm-pac
 ```
 
 Make sure the XHR requests set the `Content-type: application/json` and `Accept: application/json`.
-The development server has heuristics, to handle its own flow, which may interfere with proxying of 
+The development server has heuristics, to handle its own flow, which may interfere with proxying of
 other html and javascript content types.
 
 ```sh
@@ -543,7 +545,7 @@ Create Elm App uses [elm-test](https://github.com/rtfeldman/node-test-runner) as
 To use packages in tests, you also need to install them in `tests` directory.
 
 ```bash
-elm-app test --add-dependencies elm-package.json 
+elm-app test --add-dependencies elm-package.json
 ```
 
 ### Continuous Integration
